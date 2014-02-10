@@ -15,7 +15,7 @@ class IMemoryManager {
 
 class MemoryManager : public IMemoryManager {
     public:
-        MemoryManager() : treeNodesHead(0) {
+        MemoryManager() : freeListHead(0) {
             getMoreNodes();
         }
         virtual ~MemoryManager() {
@@ -23,16 +23,56 @@ class MemoryManager : public IMemoryManager {
         }
         virtual void *allocate(size_t);
         virtual void free(void *);
+
     private:
-        struct TreeNodes {
-            TreeNodes *next;
+        struct FreeList {
+            FreeList *next;
         }
         
-        TreeNodes *treeNodesHead;
+        FreeList *freeListHead;
 
-        void getMoreNodes();
+        void getMoreNodes(size_t, size_t);
         void cleanUp();
 
+}
+
+// Returns a node from the free list
+inline void *MemoryManager::allocate(size_t size) {
+    if(freeListHead == 0) getMoreNodes(256, size); 
+    
+    FreeList *head = freeListHead;
+    freeListHead = head->next;
+    return head;
+}
+
+// Adds an unused node back to the free list
+inline void MemoryManager:: free(void *deletedNode) {
+    FreeList *head = static_cast<FreeList *>(deletedNode);
+    head->next = freeListHead;
+    freeListHead = head;
+}
+
+// Allocates a chunk of memory to be used as nodes as part of the free list
+inline void MemoryManager::getMoreNodes(size_t poolSize, size_t objectSize) {
+    size_t size = objectSize > sizeof(FreeList *) ? objectSize : sizeof(FreeList *);
+    FreeList *head = reinterpret_cast<FreeList *>(new char[size]);
+    freeListHead = head;
+
+    for(int i = 0; i < poolSize; ++i) {
+        head->next = reinterpret_cast<FreeList *>(new char[size]);
+        head = head->next;
+    }
+
+    head->next = 0;
+}
+
+// De-allocates the free list
+inline void MemoryManager::cleanUp() {
+    FreeList *nextPtr = freeListHead;
+    for(; nextPtr; nextPtr = freeListHead) {
+        freeListHead = freeListHead->next;
+        delete [] nextPtr;
+    }
 }
 
 #endif
