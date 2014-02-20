@@ -22,9 +22,7 @@ class MemoryManager : public IMemoryManager {
         void cleanUp();
 
     public:
-        MemoryManager(size_t size) : freeListHead(0) {
-            getMoreNodes(256, size);
-        }
+        MemoryManager() : freeListHead(0) {}
         virtual ~MemoryManager() {
             cleanUp();
         }
@@ -33,7 +31,7 @@ class MemoryManager : public IMemoryManager {
 
 };
 
-inline void *MemoryManager::allocate(size_t size = 24) {
+inline void *MemoryManager::allocate(size_t size) {
     if (freeListHead == 0) getMoreNodes(256, size);
     FreeList *head = freeListHead;
     freeListHead = head->next;
