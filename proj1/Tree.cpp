@@ -42,9 +42,36 @@ void Tree::insert(key_t newKey, object_t newObj) {
     if(root->left == NULL) {
         TreeNode *newNode = new TreeNode(newObj);
         root->left = newNode;
+        root->key = newKey;
         root->right = NULL;
     } else {
+        TreeNode *tmp = root;
+        while(tmp->right != NULL) {
+            if(newKey < tmp->key) tmp = tmp->left;
+            else tmp = tmp->right;
+        }
 
+        if(tmp->key == newKey) return;
+
+        TreeNode *oldLeaf, *newLeaf;
+        oldLeaf = new TreeNode();
+        oldLeaf->left = tmp->left;
+        oldLeaf->key = tmp->key;
+        oldLeaf->right = NULL;
+
+        newLeaf = new TreeNode();
+        newLeaf->left = new TreeNode(newObj);
+        newLeaf->key = newKey;
+        newLeaf->right = NULL;
+
+        if(tmp->key < newKey) {
+            tmp->left = oldLeaf;
+            tmp->right = newLeaf;
+            tmp->key = newKey;
+        } else {
+            tmp->left = newLeaf;
+            tmp->right = oldLeaf;
+        }
     }
 
 }
@@ -60,7 +87,6 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
         } else return NULL;
     }
     
-    TreeNode *upper, *other;
     TreeNode *tmp = root;
     while(tmp->right != NULL) {
        upper = tmp;
@@ -84,9 +110,11 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
     }
 }
 
+
+/* Breadth first traversal printing to show each level */
 void Tree::print() {
     if(root == NULL) return;
-    TreeNode *tmp;
+    const TreeNode *tmp;
     int level = 0;
     typedef std::pair<const TreeNode *, int> nodeLevel;
     std::queue<nodeLevel> q;
@@ -97,14 +125,13 @@ void Tree::print() {
         q.pop();
         if((tmp = nl.first) != NULL) {
             if(level != nl.second) {
-                
+                std::cout << " Level " << nl.second << ": ";
+                level = nl.second;
             }
-            q.push(tmp->left);
-            std::cout << tmp->left->key << "  ";
-        }
-        if(tmp->right != NULL) {
-            q.push(tmp->right);
-            std::cout << tmp->right->key << " ";
-        }
+            std::cout << tmp->key << ' ';
+            q.push(nodeLevel(tmp->left, level+1));
+            q.push(nodeLevel(tmp->right, level+1));
+        } 
     }
+    std::cout << std::endl;
 }
