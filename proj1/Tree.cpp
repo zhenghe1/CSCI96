@@ -16,9 +16,13 @@ void TreeNode::operator delete(void *ptr) {
 
 Tree::Tree() {
     std::cout << "In Tree() " << std::endl;
+    leafCounter = new TreeNode(0);
     root = new TreeNode();
+    leafCounter->left = root;
     std::cout << "In Tree() created new root " << std::endl;
     root->left = NULL;
+    root->parent = NULL;
+    root->right = NULL;
     std::cout << "In Tree::constructor - Created tree" << std::endl;
 }
 
@@ -33,12 +37,12 @@ TreeNode *Tree::find(key_t query) {
         }
     }
 
-    if(tmp->key == query) return tmp->left;
+    if(tmp->key == query) return tmp;
     else return NULL;
 
 }
 
-void Tree::insert(key_t newKey, object_t newObj) {
+int Tree::insert(key_t newKey, object_t newObj) {
     if(root->left == NULL) {
         TreeNode *newNode = new TreeNode(newObj);
         root->left = newNode;
@@ -51,7 +55,7 @@ void Tree::insert(key_t newKey, object_t newObj) {
             else tmp = tmp->right;
         }
 
-        if(tmp->key == newKey) return;
+        if(tmp->key == newKey) return 0;
 
         TreeNode *oldLeaf, *newLeaf;
         oldLeaf = new TreeNode();
@@ -72,17 +76,21 @@ void Tree::insert(key_t newKey, object_t newObj) {
             tmp->left = newLeaf;
             tmp->right = oldLeaf;
         }
+        newLeaf->parent = tmp;
+        oldLeaf->parent = tmp;
     }
-
+    leafCounter->key++;
+    return 1;
 }
 
 TreeNode *Tree::deleteNode(key_t deleteKey) {
     TreeNode *delObj, *upper, *other;
     if(root->left == NULL) return NULL;
     if(root->right == NULL) { // object on left
-        if(root->left->key == deleteKey) {
+        if(root->key == deleteKey) {
             delObj = root->left;
             root->left = NULL;
+            leafCounter->key--;
             return delObj;
         } else return NULL;
     }
@@ -106,6 +114,7 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
         delObj = tmp->left;
         delete tmp;
         delete other;
+        leafCounter->key--;
         return delObj;
     }
 }

@@ -15,8 +15,12 @@ int main(int argc, char **argv) {
             getline(std::cin, value);
             std::stringstream(value) >> insKey;
             insObj = 10*insKey+2;
-            t.insert(insKey, insObj);
-            std::cout << "\ninsKey: " << insKey << "\tinsObj: " << insObj << std::endl;
+            int ret = t.insert(insKey, insObj);
+            if(ret == 1) {
+                std::cout << "\ninsKey: " << insKey << "\tinsObj: " << insObj << "\tleafCount: " << t.leafCounter->key << std::endl;
+            } else {
+                std::cout << "Duplicate insert key" << std::endl;
+            }
         }
         if(nextop == "f") {
             int findKey;
@@ -25,7 +29,18 @@ int main(int argc, char **argv) {
             getline(std::cin, value);
             std::stringstream(value) >> findKey;
             findObj = t.find(findKey);
-            std::cout << "\nfindKey: " << findKey << "\tfindObj: " << findObj->key << std::endl;
+            if(findObj != NULL) {
+                std::cout << findObj->key << " ";
+                TreeNode *tn = findObj;
+                while(tn->parent != NULL) {
+                    std::cout << tn->parent->key << " ";
+                    tn = tn->parent;
+                }
+                std::cout << "\nfindKey: " << findKey << "\tfindObj: " << findObj->left->key << std::endl;
+        
+            } else {
+                std::cout << "key not found" << std::endl;
+            }   
         }
         if(nextop == "d") {
             int delKey;
@@ -34,7 +49,11 @@ int main(int argc, char **argv) {
             getline(std::cin, value);
             std::stringstream(value) >> delKey;
             delObj = t.deleteNode(delKey);
-            std::cout << "\ndelKey: " << delKey << "\tdelObj: " << delObj->key << std::endl;
+            if(delObj != NULL) {
+                std::cout << "\ndelKey: " << delKey << "\tdelObj: " << delObj->key << "\tleafCount: " << t.leafCounter->key << std::endl;
+            } else {
+                std::cout << "delete key not found" << std::endl;
+            }
         }
         if(nextop == "p") t.print();
         std::cout << "\nEnter command: ";

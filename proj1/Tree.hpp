@@ -26,11 +26,12 @@ class Tree {
     private:
         TreeNode *root;
     public:
+        TreeNode *leafCounter;
         Tree();
 
         TreeNode *find(key_t);
 
-        void insert(key_t, object_t);
+        int insert(key_t, object_t);
 
         TreeNode *deleteNode(key_t);
 
