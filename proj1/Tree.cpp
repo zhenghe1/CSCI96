@@ -3,25 +3,25 @@
 MemoryManager mm;
 
 void *TreeNode::operator new(size_t size) {
-    std::cout << "In TreeNode::new - @param size: " << size << std::endl;
+    //std::cout << "In TreeNode::new - @param size: " << size << std::endl;
     mm.allocate(size);
 }
 
 void TreeNode::operator delete(void *ptr) {
-    std::cout << "In TreeNode::delete" << std::endl;
+    //std::cout << "In TreeNode::delete" << std::endl;
     mm.free(ptr);
 }
 
-Tree::Tree() {
-    std::cout << "In Tree() " << std::endl;
+Tree::Tree() : alpha(0.245) {
+    //std::cout << "In Tree() " << std::endl;
     leafCounter = new TreeNode(0);
     root = new TreeNode();
     leafCounter->left = root;
-    std::cout << "In Tree() created new root " << std::endl;
+    //std::cout << "In Tree() created new root " << std::endl;
     root->left = NULL;
     root->parent = NULL;
     root->right = NULL;
-    std::cout << "In Tree::constructor - Created tree" << std::endl;
+    //std::cout << "In Tree::constructor - Created tree" << std::endl;
 }
 
 TreeNode *Tree::find(key_t query) {
@@ -73,9 +73,9 @@ int Tree::insert(key_t newKey, object_t newObj) {
         oldLeaf->parent = tmp;
         leafCounter->key++;
         level++;
-        std::cout << "Level of node: " << level << std::endl;
+        //std::cout << "Level of node: " << level << std::endl;
         const double bound = depthBound();
-        std::cout << "Bound: " << bound << " depth: " << level << std::endl;
+        //std::cout << "Bound: " << bound << " depth: " << level << std::endl;
         if(tmp->key < newKey) {
             tmp->left = oldLeaf;
             tmp->right = newLeaf;
@@ -84,112 +84,100 @@ int Tree::insert(key_t newKey, object_t newObj) {
             tmp->left = newLeaf;
             tmp->right = oldLeaf;
         }
-        if(level > depthBound()) tmp->parent = rebalance(newLeaf);
+        if(level > depthBound()) insertSubtree(newLeaf);
     }
     
     return 1;
 }
 
-/*TreeNode *Tree::rebalance(TreeNode *list) {
-    typedef struct {
-        TreeNode *n1;
-        TreeNode *n2;
-        int num;
-    } st_item;
 
+TreeNode *Tree::insertSubtree(TreeNode *tn) {
+    print();
+    /*std::cout << "alpha weight: " << weightBound(1) << "  i: " << 1 << std::endl;
+    std::cout << "alpha weight: " << weightBound(2) << "  i: " << 2 << std::endl;
+    std::cout << "alpha weight: " << weightBound(3) << "  i: " << 3 << std::endl;
+    std::cout << "alpha weight: " << weightBound(4) << "  i: " << 4 << std::endl;
+    std::cout << "alpha weight: " << weightBound(5) << "  i: " << 5 << std::endl;
+    std::cout << "alpha weight: " << weightBound(6) << "  i: " << 6 << std::endl;
+    std::cout << "alpha weight: " << weightBound(7) << "  i: " << 7 << std::endl;
+    std::cout << "alpha weight: " << weightBound(8) << "  i: " << 8 << std::endl;
+    std::cout << "alpha weight: " << weightBound(9) << "  i: " << 9 << std::endl;
+    std::cout << "alpha weight: " << weightBound(10) << "  i: " << 10 << std::endl;
+    */
+    TreeNode *tmp;
+    tmp = tn->parent;
+    int size = 0, level = 0;
+    TreeNode *list = NULL;
+    TreeNode *back = NULL;
+    if(tn->parent->key > tn->key) convertToList(tmp, size, list, back, 0);
+    else convertToList(tmp, size, list, back, 1);
+    level++;
+    //std::cout << "rebalance size: " << size << "  bound: " << weightBound(level) << std::endl;
+    while(size > weightBound(level)) {
+        tmp = tmp->parent;
+        //std::cout << "listkey " << list->key << "  tmpKey: " << tmp->key << std::endl;
+        if(list->key >= tmp->key) {
+            convertToList(tmp->left, size, list, back, 0);
+        } else {
+            convertToList(tmp->right, size, list, back, 1);
+        }
+        level++;
+        //std::cout << "rebalance size: " << size << "  bound: " << weightBound(level) << std::endl;
+    }
+
+    while(list != NULL) {
+        std::cout << list->key << std::endl;
+        list = list->right;
+    }
+    std::cout << "PARENT: " << tmp->parent->key << std::endl;
+    if(list->key < tmp->parent->key) tmp->parent->left = rebalance(list);
+    else tmp->parent->right = rebalance(list);
+}
+
+TreeNode *Tree::rebalance(TreeNode *list) {
     st_item current, left, right;
+    std::stack<st_item> s;
     TreeNode *tmp, *root;
     int length = 0;
 
-    for(tmp = list; tmp != NULL; tmp = tmp->right) {
-        length++;
-    }
-
-    std::stack<st_item> s;
+    for(tmp = list; tmp != NULL; tmp = tmp->right) length++;
+    
     root = new TreeNode();
     current.n1 = root;
     current.n2 = NULL;
     current.num = length;
     s.push(current);
 
+
+    std::cout << "Before while loop" << std::endl;
+
     while(!s.empty()) {
         current = s.top();
         s.pop();
+
         if(current.num > 1) {
             left.n1 = new TreeNode();
             left.n2 = current.n2;
-            left.num = current.num / 2;
+            left.num = current.num/2;
 
             right.n1 = new TreeNode();
             right.n2 = current.n1;
             right.num = current.num - left.num;
 
             current.n1->left = left.n1;
+            left.n1->parent = current.n1;
+
             current.n1->right = right.n1;
-            current.n1->parent = left.n1->parent;
+            right.n1->parent = current.n1;
+
             s.push(right);
             s.push(left);
         } else {
             current.n1->left = list->left;
             current.n1->key = list->key;
-            current.n1->parent = list->parent;
             current.n1->right = NULL;
-            
-            if(current.n2 != NULL) current.n2->key = list->key;
-            
-            tmp = list;
-            list = list->right;
-            delete tmp;
-        }
-    }
-
-    return root;
-}*/
-
-TreeNode *Tree::rebalance(TreeNode *list) {
-    typedef struct {
-        TreeNode *n1;
-        TreeNode *n2;
-        int num;
-    } st_item;
-
-    st_item current, left, right;
-    st_item s[100]; int st_p = 0;
-    TreeNode *tmp, *root;
-    int length = 0;
-    for(tmp = list; tmp != NULL; tmp = tmp->right) length++;
-
-    root = new TreeNode();
-    current.n1 = root;
-    current.n2 = NULL;
-    current.num = length;
-    s[st_p++] = current;
-
-    while(st_p > 0) {
-        current = s[--st_p];
-        if(current.num > 1) {
-            left.n1 = new TreeNode();
-            left.n2 = current.n2;
-            left.num = current.num/2;
-            
-            right.n1 = new TreeNode();
-            right.n2 = current.n1;
-            right.num = current.num - left.num;
-            
-            current.n1->left = left.n1;
-            current.n1->right = right.n1;
-            //current.n1->parent = left.n1->parent;
-
-            s[st_p++] = right;
-            s[st_p++] = left;
-        } else {
-            current.n1->left = list->left;
-            current.n1->key = list->key;
-            current.n1->right = NULL;
-            //current.n1->parent = list->parent;
 
             if(current.n2 != NULL) current.n2->key = list->key;
-            
             tmp = list;
             list = list->right;
             delete tmp;
@@ -198,8 +186,8 @@ TreeNode *Tree::rebalance(TreeNode *list) {
     return root;
 }
 
-TreeNode* Tree::convertToList(TreeNode *tn) {
-    TreeNode *list = NULL, *node;
+TreeNode* Tree::convertToList(TreeNode *tn, int &size, TreeNode *&list, TreeNode *&back, bool direction) {
+    TreeNode *node, *tmp = list;
     if(tn->left == NULL) {
         delete tn;
         return NULL;
@@ -210,14 +198,29 @@ TreeNode* Tree::convertToList(TreeNode *tn) {
         node = s.top();
         s.pop();
         if(node->right == NULL) {
-            node->right = list;
-            list = node;
+            if(direction == 1) {
+                if(back == NULL) {
+                    back = node;
+                    list = node;
+                }
+                else {
+                    back->right = node;
+                    back = back->right;
+                }
+            }
+            else {
+                node->right = list;
+                list = node;
+                back = node->right;
+            }
+            size++;
         } else {
             s.push(node->left);
             s.push(node->right);
             delete node;
         }
     }
+     
     return list;
 }
 

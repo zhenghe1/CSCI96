@@ -30,6 +30,13 @@ class TreeNode {
 class Tree {
     private:
         TreeNode *root;
+        double alpha;
+        class st_item {
+            public:
+                TreeNode *n1;
+                TreeNode *n2;
+                int num;
+        };
     public:
         TreeNode *leafCounter;
         Tree();
@@ -41,12 +48,18 @@ class Tree {
         TreeNode *deleteNode(key_t);
 
         inline const double depthBound() {
-            return ((pow(log2(1/(1-0.245)), -1)) * log2(leafCounter->key));
+            return ((pow(log2(1/(1-alpha)), -1)) * log2(leafCounter->key));
         }
+
+        inline double weightBound(int i) {
+            return ((pow(1/(1-alpha), i)));
+        }
+
+        TreeNode *insertSubtree(TreeNode *);
 
         TreeNode *rebalance(TreeNode *);
 
-        TreeNode *convertToList(TreeNode *);
+        TreeNode *convertToList(TreeNode *, int &, TreeNode *&, TreeNode *&, bool);
 
         void print();
 };

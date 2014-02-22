@@ -60,14 +60,25 @@ int main(int argc, char **argv) {
             }
         }
         if(nextop == "p") t.print();
-        if(nextop == "l") {
-            TreeNode *tn = t.convertToList(t.leafCounter->left);
+        /*if(nextop == "l") {
+            int size = 0;
+            TreeNode *tn = t.convertToList(t.leafCounter->left->right->right, size, NULL);
             while(tn != NULL) {
                 std::cout << tn->key << " ";
                 tn = tn->right;
             }
-            std::cout << std::endl;
-        }
+            std::cout << "size: " << size << std::endl;
+            
+            t.print();
+            size = 0;
+            TreeNode *tn2 = t.convertToList(t.leafCounter->left->right, size, tn);
+            while(tn2 != NULL) {
+                std::cout << tn2->key << " ";
+                tn2 = tn2->right;
+            }
+            std::cout << "size: " << size << std::endl;
+        
+        }*/
         std::cout << "\nEnter command: ";
         getline(std::cin, nextop);
     }
