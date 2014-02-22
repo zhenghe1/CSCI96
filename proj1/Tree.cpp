@@ -1,6 +1,4 @@
 #include "Tree.hpp"
-#include <queue>
-#include <utility>
 
 MemoryManager mm;
 
@@ -43,16 +41,19 @@ TreeNode *Tree::find(key_t query) {
 }
 
 int Tree::insert(key_t newKey, object_t newObj) {
+    int level = 0;
     if(root->left == NULL) {
         TreeNode *newNode = new TreeNode(newObj);
         root->left = newNode;
         root->key = newKey;
         root->right = NULL;
+        leafCounter->key++;
     } else {
         TreeNode *tmp = root;
         while(tmp->right != NULL) {
             if(newKey < tmp->key) tmp = tmp->left;
             else tmp = tmp->right;
+            level++;
         }
 
         if(tmp->key == newKey) return 0;
@@ -68,6 +69,13 @@ int Tree::insert(key_t newKey, object_t newObj) {
         newLeaf->key = newKey;
         newLeaf->right = NULL;
 
+        newLeaf->parent = tmp;
+        oldLeaf->parent = tmp;
+        leafCounter->key++;
+        level++;
+        std::cout << "Level of node: " << level << std::endl;
+        const double bound = depthBound();
+        std::cout << "Bound: " << bound << " depth: " << level << std::endl;
         if(tmp->key < newKey) {
             tmp->left = oldLeaf;
             tmp->right = newLeaf;
@@ -76,11 +84,141 @@ int Tree::insert(key_t newKey, object_t newObj) {
             tmp->left = newLeaf;
             tmp->right = oldLeaf;
         }
-        newLeaf->parent = tmp;
-        oldLeaf->parent = tmp;
+        if(level > depthBound()) tmp->parent = rebalance(newLeaf);
     }
-    leafCounter->key++;
+    
     return 1;
+}
+
+/*TreeNode *Tree::rebalance(TreeNode *list) {
+    typedef struct {
+        TreeNode *n1;
+        TreeNode *n2;
+        int num;
+    } st_item;
+
+    st_item current, left, right;
+    TreeNode *tmp, *root;
+    int length = 0;
+
+    for(tmp = list; tmp != NULL; tmp = tmp->right) {
+        length++;
+    }
+
+    std::stack<st_item> s;
+    root = new TreeNode();
+    current.n1 = root;
+    current.n2 = NULL;
+    current.num = length;
+    s.push(current);
+
+    while(!s.empty()) {
+        current = s.top();
+        s.pop();
+        if(current.num > 1) {
+            left.n1 = new TreeNode();
+            left.n2 = current.n2;
+            left.num = current.num / 2;
+
+            right.n1 = new TreeNode();
+            right.n2 = current.n1;
+            right.num = current.num - left.num;
+
+            current.n1->left = left.n1;
+            current.n1->right = right.n1;
+            current.n1->parent = left.n1->parent;
+            s.push(right);
+            s.push(left);
+        } else {
+            current.n1->left = list->left;
+            current.n1->key = list->key;
+            current.n1->parent = list->parent;
+            current.n1->right = NULL;
+            
+            if(current.n2 != NULL) current.n2->key = list->key;
+            
+            tmp = list;
+            list = list->right;
+            delete tmp;
+        }
+    }
+
+    return root;
+}*/
+
+TreeNode *Tree::rebalance(TreeNode *list) {
+    typedef struct {
+        TreeNode *n1;
+        TreeNode *n2;
+        int num;
+    } st_item;
+
+    st_item current, left, right;
+    st_item s[100]; int st_p = 0;
+    TreeNode *tmp, *root;
+    int length = 0;
+    for(tmp = list; tmp != NULL; tmp = tmp->right) length++;
+
+    root = new TreeNode();
+    current.n1 = root;
+    current.n2 = NULL;
+    current.num = length;
+    s[st_p++] = current;
+
+    while(st_p > 0) {
+        current = s[--st_p];
+        if(current.num > 1) {
+            left.n1 = new TreeNode();
+            left.n2 = current.n2;
+            left.num = current.num/2;
+            
+            right.n1 = new TreeNode();
+            right.n2 = current.n1;
+            right.num = current.num - left.num;
+            
+            current.n1->left = left.n1;
+            current.n1->right = right.n1;
+            //current.n1->parent = left.n1->parent;
+
+            s[st_p++] = right;
+            s[st_p++] = left;
+        } else {
+            current.n1->left = list->left;
+            current.n1->key = list->key;
+            current.n1->right = NULL;
+            //current.n1->parent = list->parent;
+
+            if(current.n2 != NULL) current.n2->key = list->key;
+            
+            tmp = list;
+            list = list->right;
+            delete tmp;
+        }
+    }
+    return root;
+}
+
+TreeNode* Tree::convertToList(TreeNode *tn) {
+    TreeNode *list = NULL, *node;
+    if(tn->left == NULL) {
+        delete tn;
+        return NULL;
+    }
+    std::stack<TreeNode *> s;
+    s.push(tn);
+    while(!s.empty()) {
+        node = s.top();
+        s.pop();
+        if(node->right == NULL) {
+            node->right = list;
+            list = node;
+        } else {
+            s.push(node->left);
+            s.push(node->right);
+            delete node;
+        }
+    }
+    return list;
 }
 
 TreeNode *Tree::deleteNode(key_t deleteKey) {

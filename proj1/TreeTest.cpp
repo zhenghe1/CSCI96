@@ -1,8 +1,12 @@
 #include "Tree.hpp"
 #include <stdio.h>
 #include <sstream>
+#include <math.h>
 
 int main(int argc, char **argv) {
+    double x = log2(1/(1-0.167));
+    double y = pow(x, -1);
+    std::cout << x << " " << y << " " << y * 2 << std::endl;
     Tree t;
     std::string nextop, value;
     std::cout << "\n'i' to insert\n'f' to find\n'd' to delete\n'p' to print\n" << std::endl;
@@ -56,6 +60,14 @@ int main(int argc, char **argv) {
             }
         }
         if(nextop == "p") t.print();
+        if(nextop == "l") {
+            TreeNode *tn = t.convertToList(t.leafCounter->left);
+            while(tn != NULL) {
+                std::cout << tn->key << " ";
+                tn = tn->right;
+            }
+            std::cout << std::endl;
+        }
         std::cout << "\nEnter command: ";
         getline(std::cin, nextop);
     }
