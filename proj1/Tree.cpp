@@ -3,25 +3,21 @@
 MemoryManager mm;
 
 void *TreeNode::operator new(size_t size) {
-    //std::cout << "In TreeNode::new - @param size: " << size << std::endl;
     mm.allocate(size);
 }
 
 void TreeNode::operator delete(void *ptr) {
-    //std::cout << "In TreeNode::delete" << std::endl;
     mm.free(ptr);
 }
 
 Tree::Tree() : alpha(0.245) {
-    //std::cout << "In Tree() " << std::endl;
     leafCounter = new TreeNode(0);
     root = new TreeNode();
     leafCounter->left = root;
-    //std::cout << "In Tree() created new root " << std::endl;
     root->left = NULL;
     root->parent = NULL;
     root->right = NULL;
-    //std::cout << "In Tree::constructor - Created tree" << std::endl;
+    std::cout << "\nDefault params: alpha = " << alpha << std::endl << std::endl;
 }
 
 TreeNode *Tree::find(key_t query) {
@@ -41,6 +37,7 @@ TreeNode *Tree::find(key_t query) {
 }
 
 int Tree::insert(key_t newKey, object_t newObj) {
+    std::cout << "\n----Inserting object----" << std::endl;
     int level = 0;
     if(root->left == NULL) {
         TreeNode *newNode = new TreeNode(newObj);
@@ -48,6 +45,9 @@ int Tree::insert(key_t newKey, object_t newObj) {
         root->key = newKey;
         root->right = NULL;
         leafCounter->key++;
+        std::cout << "Inserted object: " << newObj << "  at key: " << newKey << std::endl;
+        std::cout << "Level of tree: " << level << "  Depth bound: " << depthBound() << std::endl;
+
     } else {
         TreeNode *tmp = root;
         while(tmp->right != NULL) {
@@ -73,18 +73,21 @@ int Tree::insert(key_t newKey, object_t newObj) {
         oldLeaf->parent = tmp;
         leafCounter->key++;
         level++;
-        //std::cout << "Level of node: " << level << std::endl;
-        const double bound = depthBound();
-        //std::cout << "Bound: " << bound << " depth: " << level << std::endl;
+
+        std::cout << "Inserted object: " << newObj << "  at key: " << newKey << std::endl;
+        std::cout << "Level of tree: " << level << "  Depth bound: " << depthBound() << std::endl;
+        
         if(tmp->key < newKey) {
             tmp->left = oldLeaf;
             tmp->right = newLeaf;
             tmp->key = newKey;
+            if(level > depthBound()) insertSubtree(oldLeaf);
         } else {
             tmp->left = newLeaf;
             tmp->right = oldLeaf;
+            if(level > depthBound()) insertSubtree(newLeaf);
         }
-        if(level > depthBound()) insertSubtree(newLeaf);
+
     }
     
     return 1;
@@ -92,49 +95,50 @@ int Tree::insert(key_t newKey, object_t newObj) {
 
 
 TreeNode *Tree::insertSubtree(TreeNode *tn) {
-    print();
-    /*std::cout << "alpha weight: " << weightBound(1) << "  i: " << 1 << std::endl;
-    std::cout << "alpha weight: " << weightBound(2) << "  i: " << 2 << std::endl;
-    std::cout << "alpha weight: " << weightBound(3) << "  i: " << 3 << std::endl;
-    std::cout << "alpha weight: " << weightBound(4) << "  i: " << 4 << std::endl;
-    std::cout << "alpha weight: " << weightBound(5) << "  i: " << 5 << std::endl;
-    std::cout << "alpha weight: " << weightBound(6) << "  i: " << 6 << std::endl;
-    std::cout << "alpha weight: " << weightBound(7) << "  i: " << 7 << std::endl;
-    std::cout << "alpha weight: " << weightBound(8) << "  i: " << 8 << std::endl;
-    std::cout << "alpha weight: " << weightBound(9) << "  i: " << 9 << std::endl;
-    std::cout << "alpha weight: " << weightBound(10) << "  i: " << 10 << std::endl;
-    */
+    std::cout << "\n----Tree before rebuilding----" << std::endl;
+    print(); 
     TreeNode *tmp;
     tmp = tn->parent;
     int size = 0, level = 0;
     TreeNode *list = NULL;
     TreeNode *back = NULL;
+    
+    std::cout << "\n---- Going up the path ----" << std::endl;
     if(tn->parent->key > tn->key) convertToList(tmp, size, list, back, 0);
     else convertToList(tmp, size, list, back, 1);
     level++;
-    //std::cout << "rebalance size: " << size << "  bound: " << weightBound(level) << std::endl;
+    std::cout << "Number of leaves: " << size << "  Weight bound: " << weightBound(level) << std::endl;
     while(size > weightBound(level)) {
         tmp = tmp->parent;
-        //std::cout << "listkey " << list->key << "  tmpKey: " << tmp->key << std::endl;
         if(list->key >= tmp->key) {
             convertToList(tmp->left, size, list, back, 0);
         } else {
             convertToList(tmp->right, size, list, back, 1);
         }
         level++;
-        //std::cout << "rebalance size: " << size << "  bound: " << weightBound(level) << std::endl;
+        std::cout << "Number of leaves: " << size << "  Weight bound: " << weightBound(level) << std::endl;
     }
 
-    while(list != NULL) {
-        std::cout << list->key << std::endl;
-        list = list->right;
+    if(tmp == root)  {
+        leafCounter->left = rebalance(list);
+        root = leafCounter->left;
+        std::cout << "\n----Rebalanced Tree----" << std::endl;
+        print();
     }
-    std::cout << "PARENT: " << tmp->parent->key << std::endl;
-    if(list->key < tmp->parent->key) tmp->parent->left = rebalance(list);
-    else tmp->parent->right = rebalance(list);
+    else if(list->key < tmp->parent->key) {
+        tmp->parent->left = rebalance(list);
+        std::cout << "\n----Rebalanced Tree----" << std::endl;
+        print();
+    }
+    else {
+        tmp->parent->right = rebalance(list);
+        std::cout << "\n----Rebalanced Tree----" << std::endl;
+        print();
+    }
 }
 
 TreeNode *Tree::rebalance(TreeNode *list) {
+    std::cout << "\n----Starting to rebuild subtree to rebalance----." << std::endl;
     st_item current, left, right;
     std::stack<st_item> s;
     TreeNode *tmp, *root;
@@ -147,9 +151,6 @@ TreeNode *Tree::rebalance(TreeNode *list) {
     current.n2 = NULL;
     current.num = length;
     s.push(current);
-
-
-    std::cout << "Before while loop" << std::endl;
 
     while(!s.empty()) {
         current = s.top();
@@ -211,7 +212,7 @@ TreeNode* Tree::convertToList(TreeNode *tn, int &size, TreeNode *&list, TreeNode
             else {
                 node->right = list;
                 list = node;
-                back = node->right;
+                if(back == NULL) back = node->right;
             }
             size++;
         } else {
@@ -251,7 +252,9 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
     else {
         upper->key = other->key;
         upper->left = other->left;
+        upper->left->parent = other->parent;
         upper->right = other->right;
+        upper->right->parent = other->parent;
         delObj = tmp->left;
         delete tmp;
         delete other;
