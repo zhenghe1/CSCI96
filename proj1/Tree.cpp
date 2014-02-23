@@ -2,14 +2,20 @@
 
 MemoryManager mm;
 
+/* Overloaded operator new to use MemoryManager's free list for memory allocation. */
 void *TreeNode::operator new(size_t size) {
     mm.allocate(size);
 }
 
+/* Overloaded operator delete to use MemoryManager's free list for de-allocation. */
 void TreeNode::operator delete(void *ptr) {
     mm.free(ptr);
 }
 
+/* 
+ * Default constructor
+ * Change alpha value as needed.
+ */
 Tree::Tree() : alpha(0.245) {
     leafCounter = new TreeNode(0);
     root = new TreeNode();
@@ -38,7 +44,9 @@ TreeNode *Tree::find(key_t query) {
 
 int Tree::insert(key_t newKey, object_t newObj) {
     std::cout << "\n----Inserting object----" << std::endl;
-    int level = 0;
+    int level = 0; // Used to compare the depth with the max height for balancing check
+    
+    /* No objects yet in the tree. */
     if(root->left == NULL) {
         TreeNode *newNode = new TreeNode(newObj);
         root->left = newNode;
@@ -50,6 +58,8 @@ int Tree::insert(key_t newKey, object_t newObj) {
 
     } else {
         TreeNode *tmp = root;
+
+        // Find place to insert
         while(tmp->right != NULL) {
             if(newKey < tmp->key) tmp = tmp->left;
             else tmp = tmp->right;
@@ -58,6 +68,7 @@ int Tree::insert(key_t newKey, object_t newObj) {
 
         if(tmp->key == newKey) return 0;
 
+        // Create new comparison and object nodes
         TreeNode *oldLeaf, *newLeaf;
         oldLeaf = new TreeNode();
         oldLeaf->left = tmp->left;
@@ -93,7 +104,7 @@ int Tree::insert(key_t newKey, object_t newObj) {
     return 1;
 }
 
-
+/* Attaches balanced subtree to the actual tree */
 TreeNode *Tree::insertSubtree(TreeNode *tn) {
     std::cout << "\n----Tree before rebuilding----" << std::endl;
     print(); 
@@ -103,6 +114,7 @@ TreeNode *Tree::insertSubtree(TreeNode *tn) {
     TreeNode *list = NULL;
     TreeNode *back = NULL;
     
+    // Goes up the path from the level that breaks threshold and combines left and right subtrees into a list.
     std::cout << "\n---- Going up the path ----" << std::endl;
     if(tn->parent->key > tn->key) convertToList(tmp, size, list, back, 0);
     else convertToList(tmp, size, list, back, 1);
@@ -119,6 +131,7 @@ TreeNode *Tree::insertSubtree(TreeNode *tn) {
         std::cout << "Number of leaves: " << size << "  Weight bound: " << weightBound(level) << std::endl;
     }
 
+    // Inserts subtree into tree
     if(tmp == root)  {
         leafCounter->left = rebalance(list);
         root = leafCounter->left;
@@ -137,6 +150,7 @@ TreeNode *Tree::insertSubtree(TreeNode *tn) {
     }
 }
 
+/* Does the rebalancing by using the top-down algorithm. */
 TreeNode *Tree::rebalance(TreeNode *list) {
     std::cout << "\n----Starting to rebuild subtree to rebalance----." << std::endl;
     st_item current, left, right;
@@ -187,6 +201,12 @@ TreeNode *Tree::rebalance(TreeNode *list) {
     return root;
 }
 
+/* Converts subtree into list. 
+ * params: size keeps track of number of leaves.
+ *         list is the head pointer.
+ *         back is back pointer.
+ *         direction is the flag for left(0) or right(1) subtree.
+ */
 TreeNode* Tree::convertToList(TreeNode *tn, int &size, TreeNode *&list, TreeNode *&back, bool direction) {
     TreeNode *node, *tmp = list;
     if(tn->left == NULL) {
@@ -236,7 +256,7 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
             return delObj;
         } else return NULL;
     }
-    
+
     TreeNode *tmp = root;
     while(tmp->right != NULL) {
        upper = tmp;
@@ -248,13 +268,15 @@ TreeNode *Tree::deleteNode(key_t deleteKey) {
             other = upper->left;
        }
     }
+
     if(tmp->key != deleteKey) return NULL;
     else {
         upper->key = other->key;
         upper->left = other->left;
-        upper->left->parent = other->parent;
+        // Have to change parent pointers
+        if(upper->right != NULL) upper->left->parent = other->parent;
         upper->right = other->right;
-        upper->right->parent = other->parent;
+        if(upper->right != NULL) upper->right->parent = other->parent;
         delObj = tmp->left;
         delete tmp;
         delete other;

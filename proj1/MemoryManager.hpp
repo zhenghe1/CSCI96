@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <iostream>
 
+/*
+ * MemoryManager uses a free list in order to assign memory.
+ * Point of this is to decrease the number of context switches between the user space and the kernel, thus increasing performance.
+ */
+
 class IMemoryManager {
     public:
         virtual void *allocate(size_t) = 0;
@@ -31,6 +36,7 @@ class MemoryManager : public IMemoryManager {
 
 };
 
+/* Allocates memory from free list. Expands memory space if free list is empty. */
 inline void *MemoryManager::allocate(size_t size) {
     if (freeListHead == 0) getMoreNodes(256, size);
     FreeList *head = freeListHead;
@@ -39,12 +45,14 @@ inline void *MemoryManager::allocate(size_t size) {
     return head;
 }
 
+/* Adds a deleted node to the free list. */
 inline void MemoryManager::free(void *deletedNode) {
     FreeList *head = static_cast<FreeList *>(deletedNode);
     head->next = freeListHead;
     freeListHead = head;
 }
 
+/* Expands memory space. */
 inline void MemoryManager::getMoreNodes(size_t poolSize, size_t objectSize) {
     size_t size = objectSize > sizeof(FreeList *) ? objectSize : sizeof(FreeList *);
     FreeList *head = reinterpret_cast<FreeList *>(new char[size]);
@@ -58,6 +66,7 @@ inline void MemoryManager::getMoreNodes(size_t poolSize, size_t objectSize) {
     head->next = 0;
 }
 
+/* De-allocates the free list. */
 inline void MemoryManager::cleanUp() {
     FreeList *nextPtr = freeListHead;
     for(; nextPtr; nextPtr = freeListHead) {

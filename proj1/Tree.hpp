@@ -18,7 +18,7 @@ class TreeNode {
         key_t key;
         TreeNode *left;
         TreeNode *right;
-        TreeNode *parent;
+        TreeNode *parent; // Back pointers to parent node
         
         TreeNode() : left(NULL), right(NULL), parent(NULL) {}
         TreeNode(int value) : key(value), left(NULL), right(NULL), parent(NULL) {}
@@ -31,6 +31,7 @@ class Tree {
     private:
         TreeNode *root;
         double alpha;
+        // Inner class for building top-down optimal tree
         class st_item {
             public:
                 TreeNode *n1;
@@ -38,7 +39,7 @@ class Tree {
                 int num;
         };
     public:
-        TreeNode *leafCounter;
+        TreeNode *leafCounter; // Node above root to keep track of number of leaves
         Tree();
 
         TreeNode *find(key_t);
