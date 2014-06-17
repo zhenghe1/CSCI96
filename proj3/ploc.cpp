@@ -93,14 +93,6 @@ class ploc_t {
 
             deletedTr = deleteIS(pointInfo);
 
-            /*for(int i = 0; i < independentSet.size(); i++) {
-              std::cout << "\nIndependent point: " << independentSet[i] << "\nTriangles: " << std::endl;
-              for(int j = 0; j < deletedTr[independentSet[i]].size(); j++) {
-              Triangle *t = deletedTr[independentSet[i]][j];
-              std::cout << t->m_a << " " << t->m_b << " " << t->m_c << std::endl;
-              }
-              }*/
-
             // retriangulate
             retriangulate(deletedTr, independentSet, pointInfo, holes);
 
@@ -213,60 +205,19 @@ class ploc_t {
                                         m_vertices[holes[i][j]]->neighbors.end(),
                                         holes[i][k]) == m_vertices[holes[i][j]]->neighbors.end()) {
                                 // check condition 1: if midpoint of diagonal is in any of previous triangles
-                                float midx, midy;
-                                midx = (static_cast<float>(originalPoints[holes[i][j]][0]) - static_cast<float>(originalPoints[holes[i][k]][0])) / 2;
-                                midy = (static_cast<float>(originalPoints[holes[i][j]][1]) - static_cast<float>(originalPoints[holes[i][k]][1])) / 2;
-                                for(int dtr = 0; dtr < delTrSize; dtr++) {
-                                    Triangle *tri = deletedTr[independentSet[i]][dtr];
-                                    if(pit(originalPoints[tri->m_a][0],
-                                           originalPoints[tri->m_a][1],
-                                           originalPoints[tri->m_b][0],
-                                           originalPoints[tri->m_b][1],
-                                           originalPoints[tri->m_c][0],
-                                           originalPoints[tri->m_c][1],
-                                           midx, midy)) {
-                                        pitest = true;
-                                        break;
-                                    }
-                                }
+                                cond1(holes[i], deletedTr[independentSet[i]], pitest, j, k, delTrSize);
                                 // if does not pass point in triangle test, continue to next k
                                 if(!pitest) continue;
 
                                 // check condition 2: if diagonal intersects any non-adjacient line to j
-                                // find points inti that is not j
-                                // find neighbors of inti, intj that is not j
-                                // check if line j-k intersects inti-intj
-                                for(int inti = 0; inti < holeSize; inti++) {
-                                    if(inti != j) {
-                                        for(int intj = inti; intj < holeSize; intj++) {
-                                            if(intj != inti && intj != j && std::find(m_vertices[holes[i][inti]]->neighbors.begin(),
-                                                                                      m_vertices[holes[i][inti]]->neighbors.end(),
-                                                                                      holes[i][intj]) != m_vertices[holes[i][inti]]->neighbors.end()) {
-                                                if(lit(originalPoints[holes[i][j]][0],
-                                                       originalPoints[holes[i][j]][1],
-                                                       originalPoints[holes[i][k]][0],
-                                                       originalPoints[holes[i][k]][1],
-                                                       originalPoints[holes[i][inti]][0],
-                                                       originalPoints[holes[i][inti]][1],
-                                                       originalPoints[holes[i][intj]][0],
-                                                       originalPoints[holes[i][intj]][1])) {
-                                                    itest = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if(itest) break;
-                                    }
-                                }
+                                cond2(holes[i], itest, j, k, holeSize);
                                 // if there is intersection, continue to next k
                                 if(itest) continue;
-                                
+
                                 // can triangulate, all tests passed
                                 // add diagonal from j to k
-                                m_vertices[holes[i][j]]->addNeighbor(holes[i][k]);
-                                m_vertices[holes[i][k]]->addNeighbor(holes[i][j]);
-
                                 // create new triangles and add them to new triangles vector
+                                triangulate(holes[i], j, k);
                             }
                         }
                     }
@@ -275,6 +226,55 @@ class ploc_t {
                 }
             }
             m_triangles.push_back(newTriangles);
+        }
+
+        void triangulate(std::vector<int> hole, int j, int k) {
+            m_vertices[hole[j]]->addNeighbor(hole[k]);
+            m_vertices[hole[k]]->addNeighbor(hole[j]);
+        }
+
+        void cond1(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
+            float midx, midy;
+            midx = (static_cast<float>(originalPoints[hole[j]][0]) - static_cast<float>(originalPoints[hole[k]][0])) / 2;
+            midy = (static_cast<float>(originalPoints[hole[j]][1]) - static_cast<float>(originalPoints[hole[k]][1])) / 2;
+            for(int dtr = 0; dtr < delTrSize; dtr++) {
+                Triangle *tri = tr[dtr];
+                if(pit(originalPoints[tri->m_a][0], originalPoints[tri->m_a][1],
+                            originalPoints[tri->m_b][0], originalPoints[tri->m_b][1],
+                            originalPoints[tri->m_c][0], originalPoints[tri->m_c][1],
+                            midx, midy)) {
+                    pitest = true;
+                    return;
+                }
+            }
+        }
+
+        void cond2(std::vector<int> hole, bool &itest, int j, int k, int holeSize) {
+            // find points inti that is not j
+            // find neighbors of inti, intj that is not j
+            // check if line j-k intersects inti-intj
+            for(int inti = 0; inti < holeSize; inti++) {
+                if(inti != j) {
+                    for(int intj = inti; intj < holeSize; intj++) {
+                        if(intj != inti && intj != j 
+                                && std::find(m_vertices[hole[inti]]->neighbors.begin(),
+                                             m_vertices[hole[inti]]->neighbors.end(),
+                                             hole[intj]) != m_vertices[hole[inti]]->neighbors.end()) {
+                            if(lit(originalPoints[hole[j]][0],
+                                   originalPoints[hole[j]][1],
+                                   originalPoints[hole[k]][0],
+                                   originalPoints[hole[k]][1],
+                                   originalPoints[hole[inti]][0],
+                                   originalPoints[hole[inti]][1],
+                                   originalPoints[hole[intj]][0],
+                                   originalPoints[hole[intj]][1])) {
+                                itest = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // point in triangle test
