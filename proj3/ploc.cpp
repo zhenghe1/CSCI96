@@ -18,6 +18,9 @@
  *      repeat until there is only the outer triangle left
  */
 
+// Solution to having a larger triangle encompass a smaller one
+// use cond1
+
 class Node {
 
     public:
@@ -81,21 +84,23 @@ class ploc_t {
 
             // triangulation refinement
             // loop until last triangulation has only 1 triangle
-            std::vector<std::vector<int> > holes;
-            // holds the indices for triangles to be deleted
-            std::vector<std::vector<Triangle *> > deletedTr;
-            // pointInfo - holds information as to whether a point needs to be deleted
-            // and if it can be added to the independent set
-            std::vector<char> pointInfo;
+            while(m_triangles.back().size() >= 3) {
+                std::vector<std::vector<int> > holes;
+                // holds the indices for triangles to be deleted
+                std::vector<std::vector<Triangle *> > deletedTr;
+                // pointInfo - holds information as to whether a point needs to be deleted
+                // and if it can be added to the independent set
+                std::vector<char> pointInfo;
 
-            std::vector<int> independentSet;
-            pointInfo = getIndependentSet(holes, /*deletedTr, */n, independentSet);
+                std::vector<int> independentSet;
+                pointInfo = getIndependentSet(holes, n, independentSet);
 
-            deletedTr = deleteIS(pointInfo);
+                deletedTr = deleteIS(pointInfo);
 
-            // retriangulate
-            retriangulate(deletedTr, independentSet, pointInfo, holes);
-
+                // retriangulate
+                retriangulate(deletedTr, independentSet, pointInfo, holes);
+                //if(m_triangles.back().size() == 1) break;
+            }
             //printTr();
         }
 
@@ -133,6 +138,7 @@ class ploc_t {
 
             // find points for independent set
             // for each point, get its neighbors as a hole
+            std::cout << "\nIndependent Set: ";
             for(int i = 0; i < m_vertices.size() - 3; i++) {
                 if(m_vertices[i] != NULL 
                         && pointInfo[i] == 0 
@@ -144,11 +150,13 @@ class ploc_t {
                         hole.push_back(m_vertices[i]->neighbors[j]);
                     }
                     independentSet.push_back(i);
-                    m_vertices[i] = NULL;
+                    std::cout << i << " ";
+                    //m_vertices[i] = NULL;
                     holes.push_back(hole);
 
                 }
             }
+            std::cout << std::endl;
 
             return pointInfo;
         }
@@ -159,6 +167,7 @@ class ploc_t {
             std::vector<Triangle *> prevTr = m_triangles.back();
             int m = prevTr.size();
             std::vector<std::vector<Triangle *> > deletedTr(originalPoints.size());
+            std::vector<Triangle *> newTriangles;
 
             for(int i = 0; i < m; i++) {
                 if(pointInfo[prevTr[i]->m_a] == 2) {
@@ -173,8 +182,18 @@ class ploc_t {
                     m_vertices[prevTr[i]->m_a]->removeNeighbor(prevTr[i]->m_c);
                     m_vertices[prevTr[i]->m_b]->removeNeighbor(prevTr[i]->m_c);
                     deletedTr[prevTr[i]->m_c].push_back(prevTr[i]);
+                } else {
+                    newTriangles.push_back(prevTr[i]);
                 }
             }
+
+            for(int i = 0; i < m_vertices.size(); i++) {
+                if(pointInfo[i] == 2 && m_vertices[i] != NULL) {
+                    m_vertices[i] = NULL;
+                }
+            }
+
+            m_triangles.push_back(newTriangles);
 
             return deletedTr;
         }
@@ -182,24 +201,31 @@ class ploc_t {
         // hole of size 3 - already a triangle, just add the 3 subfaces
         //
         void retriangulate(std::vector<std::vector<Triangle *> > &deletedTr, std::vector<int> &independentSet, std::vector<char> &pointInfo, std::vector<std::vector<int> > holes) {
-            std::vector<Triangle *> newTriangles;
             for(int i = 0; i < independentSet.size(); i++) {
                 int holeSize = holes[i].size();
                 int delTrSize = deletedTr[independentSet[i]].size();
 
+                // get list of collisions
+
                 if(holeSize == 3) {
+                    if(deletedTr[independentSet[i]].size() != 3) {
+                        std::cout << "Not 3 subfaces: " << deletedTr[independentSet[i]].size() << std::endl;
+                        std::cout << "Triangle: " << holes[i][0] << " " << holes[i][1] << " " << holes[i][2] << std::endl;
+                        int x;
+                        std::cin >> x;
+                    }
                     Triangle *newTriangle = new Triangle(i, holes[i][0], holes[i][1], holes[i][2]);
                     newTriangle->addSubface(deletedTr[independentSet[i]][0]);
                     newTriangle->addSubface(deletedTr[independentSet[i]][1]);
                     newTriangle->addSubface(deletedTr[independentSet[i]][2]);
-                    newTriangles.push_back(newTriangle);
+                    m_triangles.back().push_back(newTriangle);
                 } else if(holeSize > 3) {
                     for(int j = 0; j < holeSize; j++) {
-                        bool pitest = false;
-                        bool itest = false;
                         for(int k = j; k < holeSize; k++) {
                             // points j and k are not the same, and not neighbors
                             // cannot add diagonal to neighbor to create triangles
+                            bool pitest = false;
+                            bool itest = false;
                             if(j != k
                                     && std::find(m_vertices[holes[i][j]]->neighbors.begin(),
                                         m_vertices[holes[i][j]]->neighbors.end(),
@@ -214,25 +240,24 @@ class ploc_t {
                                 cond2(holes[i], itest, j, k, holeSize);
                                 // if there is intersection, continue to next k
                                 if(itest) continue;
-                                
+
                                 // can triangulate, all tests passed
                                 // add diagonal from j to k
                                 // create new triangles and add them to new triangles vector
-                                triangulate(holes[i], j, k, deletedTr[independentSet[i]], newTriangles);
+                                triangulate(holes[i], j, k, deletedTr[independentSet[i]]);
                             }
                         }
                     }
                 } else {
                     std::cout << "\nDEBUG: hole size = " << holeSize << std::endl;
+
                 }
             }
-            m_triangles.push_back(newTriangles);
+            printBackTr();
         }
 
-        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr, std::vector<Triangle *> &newTriangles) {
-            m_vertices[hole[j]]->addNeighbor(hole[k]);
-            m_vertices[hole[k]]->addNeighbor(hole[j]);
-
+        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr) {
+            
             for(int ni = 0; ni < hole.size(); ni++) {
                 // find same neighbor, ni of j and k to create triangle ni j k
                 if(std::find(m_vertices[hole[j]]->neighbors.begin(), 
@@ -240,9 +265,15 @@ class ploc_t {
                             hole[ni]) != m_vertices[hole[j]]->neighbors.end()
                         && std::find(m_vertices[hole[k]]->neighbors.begin(),
                             m_vertices[hole[k]]->neighbors.end(),
-                            hole[ni]) != m_vertices[hole[k]]->neighbors.end()) {
+                            hole[ni]) != m_vertices[hole[k]]->neighbors.end()
+                        && std::find(hole.begin(), hole.end(), hole[ni]) != hole.end()) {
+                    bool midpit = false;
+                    cond1(hole, delTr, midpit, j, k, delTr.size());
+                    if(!midpit) return;
                     Triangle *newTriangle = new Triangle(ni, hole[j], hole[k], hole[ni]);
-                    
+                    m_vertices[hole[j]]->addNeighbor(hole[k]);
+                    m_vertices[hole[k]]->addNeighbor(hole[j]);
+
                     // add sub triangles
                     for(int dtri = 0; dtri < delTr.size(); dtri++) {
                         // when do triangles overlap?
@@ -250,61 +281,62 @@ class ploc_t {
                         // any previous line intersects a line
                         Triangle *t = delTr[dtri];
                         if(pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                               originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                               originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                               originalPoints[t->m_a][0], originalPoints[t->m_a][1], true)
-                            && pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                   originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                   originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                   originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
-                            && pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                   originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                   originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                   originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)) {
+                                    originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1], true)
+                                && pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                    originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
+                                && pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                    originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)) {
                             newTriangle->addSubface(t);
                         }
                         else if((lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                 originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                 originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                 originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
-                             || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                    originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
-                             || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                    originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
-                             || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
-                             || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
-                             || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
-                             || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
-                             || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
-                             || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                    originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                    originalPoints[t->m_b][0], originalPoints[t->m_b][1],
-                                    originalPoints[t->m_c][0], originalPoints[t->m_c][1], true))) {
-                            newTriangle->addSubface(t);
-                        }
+                                        originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
+                                    || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                        originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                    || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                        originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                    || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
+                                    || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                    || lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                    || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
+                                    || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                    || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true))) {
+                                                newTriangle->addSubface(t);
+                                            }
                     }
-                    newTriangles.push_back(newTriangle);
+                    m_triangles.back().push_back(newTriangle);
                 }
             }
+            
         }
 
         void cond1(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
@@ -342,6 +374,7 @@ class ploc_t {
                                         originalPoints[hole[inti]][1],
                                         originalPoints[hole[intj]][0],
                                         originalPoints[hole[intj]][1])) {
+                                
                                 itest = true;
                                 return;
                             }
@@ -394,11 +427,12 @@ class ploc_t {
             s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
             t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
 
-            float slope1 = (p1_y - p0_y) / (p1_x - p0_x);
-            float yint1 = p0_y - slope1 * p0_x;
-            float slope2 = (p3_y - p2_y) / (p3_x - p2_x);
-            float yint2 = p2_y - slope2 * p2_x;
             if(!sl) {
+                if((p1_x - p0_x) == 0 && (p3_x - p2_x) == 0 && p3_x == p1_x) return true;
+                float slope1 = (p1_y - p0_y) / (p1_x - p0_x);
+                float yint1 = p0_y - slope1 * p0_x;
+                float slope2 = (p3_y - p2_y) / (p3_x - p2_x);
+                float yint2 = p2_y - slope2 * p2_x;
                 if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001) return true;
             }
             return (s > 0 && s < 1 && t > 0 && t < 1);
@@ -414,6 +448,24 @@ class ploc_t {
                             std::cout << "Sub-triangle: " << m_triangles[i][j]->subTriangles[k]->m_label << " " << m_triangles[i][j]->subTriangles[k]->m_a << " " << m_triangles[i][j]->subTriangles[k]->m_b << " " << m_triangles[i][j]->subTriangles[k]->m_c << std::endl;
                         }
                     }
+                }
+            }
+        }
+
+        void printBackTr() {
+            std::vector<Triangle *> back = m_triangles.back();
+            std::cout << "\n Previous triangulation" << std::endl;
+            for(int i = 0; i < back.size(); i++) {
+                std::cout << back[i]->m_label << " " << back[i]->m_a << " " << back[i]->m_b << " " << back[i]->m_c << std::endl;
+                if(back[i]->subTriangles.size() > 0) {
+                    for(int j = 0; j < back[i]->subTriangles.size(); j++) {
+                        std::cout << "Sub-triangle: ";
+                        std::cout << back[i]->subTriangles[j]->m_label;
+                        std::cout << " " << back[i]->subTriangles[j]->m_a << " ";
+                        std::cout << back[i]->subTriangles[j]->m_b << " ";
+                        std::cout << back[i]->subTriangles[j]->m_c << std::endl;
+                    }
+                    //std::cout << std::endl;
                 }
             }
         }
