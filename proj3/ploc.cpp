@@ -254,6 +254,8 @@ class ploc_t {
                 }
             }
             printBackTr();
+            int x;
+            std::cin >> x;
         }
 
         void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr) {
@@ -268,8 +270,11 @@ class ploc_t {
                             hole[ni]) != m_vertices[hole[k]]->neighbors.end()
                         && std::find(hole.begin(), hole.end(), hole[ni]) != hole.end()) {
                     bool midpit = false;
-                    cond1(hole, delTr, midpit, j, k, delTr.size());
-                    if(!midpit) return;
+                    cond1(hole, delTr, midpit, j, ni, delTr.size());
+                    if(!midpit) continue;
+                    midpit = false;
+                    cond1(hole, delTr, midpit, k, ni, delTr.size());
+                    if(!midpit) continue;
                     Triangle *newTriangle = new Triangle(ni, hole[j], hole[k], hole[ni]);
                     m_vertices[hole[j]]->addNeighbor(hole[k]);
                     m_vertices[hole[k]]->addNeighbor(hole[j]);
@@ -498,7 +503,7 @@ int main() {
 
     // distance between 2 points
     int pointOS = 5;
-    int max = 5;
+    int max = 8;
     int n = max*max + 3;
     int m = (max-1)*(max-1)*2 + (max*4);
     // init points and triangles vectors
@@ -575,8 +580,9 @@ int main() {
     }
     printf("Prepared %d triangles \n", k);
 
-    //print(points, triangles);
-
+    print(points, triangles);
+    int x;
+    std::cin >> x;
     ploc_t *pl;
     pl = create_ploc(points, triangles, n, m); 
 }
