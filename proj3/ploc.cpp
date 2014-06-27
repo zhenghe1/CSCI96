@@ -204,13 +204,18 @@ class ploc_t {
             for(int i = 0; i < independentSet.size(); i++) {
                 int holeSize = holes[i].size();
                 int delTrSize = deletedTr[independentSet[i]].size();
-
-                // get list of collisions
+                // hole size n = n - 2 triangulations
+                int triangulationCount = 0;
 
                 if(holeSize == 3) {
                     if(deletedTr[independentSet[i]].size() != 3) {
+                        std::cout << "Independent Point: " << originalPoints[independentSet[i]][0] << " " << originalPoints[independentSet[i]][1] << std::endl;
                         std::cout << "Not 3 subfaces: " << deletedTr[independentSet[i]].size() << std::endl;
                         std::cout << "Triangle: " << holes[i][0] << " " << holes[i][1] << " " << holes[i][2] << std::endl;
+                        std::cout << "Deleted Triangles: " << std::endl;
+                        for(int j = 0; j < deletedTr[independentSet[i]].size(); j++) {
+                            std::cout << originalPoints[deletedTr[independentSet[i]][j]->m_a][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_a][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0]<< std::endl;
+                        }
                         int x;
                         std::cin >> x;
                     }
@@ -221,7 +226,7 @@ class ploc_t {
                     m_triangles.back().push_back(newTriangle);
                 } else if(holeSize > 3) {
                     for(int j = 0; j < holeSize; j++) {
-                        for(int k = j; k < holeSize; k++) {
+                        for(int k = 0; k < holeSize; k++) {
                             // points j and k are not the same, and not neighbors
                             // cannot add diagonal to neighbor to create triangles
                             bool pitest = false;
@@ -233,32 +238,48 @@ class ploc_t {
                                 //std::cout << "\nIteration: " << i << ". Considering diagonal: " << holes[i][j] << " " << holes[i][k] << std::endl;
                                 // check condition 1: if midpoint of diagonal is in any of previous triangles
                                 cond1(holes[i], deletedTr[independentSet[i]], pitest, j, k, delTrSize);
+                                //std::cout << pitest << " ";
                                 // if does not pass point in triangle test, continue to next k
                                 if(!pitest) continue;
 
                                 // check condition 2: if diagonal intersects any non-adjacient line to j
                                 cond2(holes[i], itest, j, k, holeSize);
+                                //std::cout << itest << std::endl;
                                 // if there is intersection, continue to next k
                                 if(itest) continue;
 
                                 // can triangulate, all tests passed
                                 // add diagonal from j to k
                                 // create new triangles and add them to new triangles vector
-                                triangulate(holes[i], j, k, deletedTr[independentSet[i]]);
+                                triangulate(holes[i], j, k, deletedTr[independentSet[i]], triangulationCount);
                             }
                         }
+                    }
+                    if(triangulationCount != holeSize - 2) {
+                        std::cout << "Did not fully triangulation: " << triangulationCount << std::endl;
+                        std::cout << "Independent Point: " << independentSet[i] << " " << originalPoints[independentSet[i]][0] << " " << originalPoints[independentSet[i]][1] << std::endl;
+                        std::cout << "Holes: " << std::endl;
+                        for(int j = 0; j < holeSize; j++) {
+                            std::cout << "ID: " << holes[i][j] << " " << originalPoints[holes[i][j]][0] << " " << originalPoints[holes[i][j]][1] << std::endl;
+                        }
+                        std::cout << "Deleted Triangles: " << std::endl;
+                        for(int j = 0; j < deletedTr[independentSet[i]].size(); j++) {
+                            std::cout << originalPoints[deletedTr[independentSet[i]][j]->m_a][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_a][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][1]<< std::endl;
+                        }
+                        int x;
+                        std::cin >> x;
                     }
                 } else {
                     std::cout << "\nDEBUG: hole size = " << holeSize << std::endl;
 
                 }
             }
-            printBackTr();
-            int x;
-            std::cin >> x;
+            //printBackTr();
+            //int x;
+            //std::cin >> x;
         }
 
-        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr) {
+        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr, int &triangulationCount) {
             
             for(int ni = 0; ni < hole.size(); ni++) {
                 // find same neighbor, ni of j and k to create triangle ni j k
@@ -271,14 +292,19 @@ class ploc_t {
                         && std::find(hole.begin(), hole.end(), hole[ni]) != hole.end()) {
                     bool midpit = false;
                     cond1(hole, delTr, midpit, j, ni, delTr.size());
+                    //std::cout << "Testing: " << hole[j] << " " << hole[ni] << " " << midpit << std::endl;
                     if(!midpit) continue;
                     midpit = false;
                     cond1(hole, delTr, midpit, k, ni, delTr.size());
+                    //std::cout << "Testing: " << hole[k] << " " << hole[ni] << " " << midpit << std::endl;
                     if(!midpit) continue;
                     Triangle *newTriangle = new Triangle(ni, hole[j], hole[k], hole[ni]);
                     m_vertices[hole[j]]->addNeighbor(hole[k]);
                     m_vertices[hole[k]]->addNeighbor(hole[j]);
 
+                    //std::cout << "Adding diagonal: " << hole[j] << " " << hole[k] << std::endl;
+                    triangulationCount++;
+                    //std::cout << triangulationCount << std::endl;
                     // add sub triangles
                     for(int dtri = 0; dtri < delTr.size(); dtri++) {
                         // when do triangles overlap?
@@ -397,7 +423,9 @@ class ploc_t {
             float beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 -   y3)); 
             float gamma = 1.0f - alpha - beta;
             if(edge == true) {
-                return (alpha >= 0) && (beta >= 0) && (gamma >= 0);
+                //return (alpha >= 0) && (beta >= 0) && (gamma >= 0);
+                return pol(x1,y1,x2,y2,x,y) || pol(x1,y1,x3,y3,x,y) || pol(x2,y2,x3,y3,x,y) ||
+                    (alpha >= 0 && beta >= 0 && gamma >= 0);
             }
             return (alpha > 0) && (beta > 0) && (gamma > 0);
         }
@@ -406,7 +434,7 @@ class ploc_t {
         bool pol(float x1, float y1, float x2, float y2, float x, float y) {
             float a = (y2-y1) / (x2 - x1);
             float b = y1 - a * x1;
-            if(std::abs(y1 - (a * x + b)) < 0.001) {
+            if(std::abs(y - (a * x + b)) < 0.001) {
                 float maxx = std::max(x1,x2);
                 float minx = std::min(x1,x2);
                 float maxy = std::max(y1,y2);
@@ -421,7 +449,6 @@ class ploc_t {
         // if touching a vertex, not intersecting
         // but if same slope and y-intercept, it is same line and is intersecting
         // test for same line intersecting if sl == false
-        //      do not use for checking whether midpoint is part of triangle for condition 1
         bool lit(float p0_x, float p0_y, float p1_x, float p1_y, float p2_x, float p2_y, float p3_x, float    p3_y, bool sl = false)
         {
             float s1_x, s1_y, s2_x, s2_y;
@@ -438,7 +465,24 @@ class ploc_t {
                 float yint1 = p0_y - slope1 * p0_x;
                 float slope2 = (p3_y - p2_y) / (p3_x - p2_x);
                 float yint2 = p2_y - slope2 * p2_x;
-                if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001) return true;
+                float maxx1 = std::max(p0_x, p1_x);
+                float maxy1 = std::max(p0_y, p1_y);
+                float minx1 = std::min(p0_x, p1_x);
+                float miny1 = std::min(p0_y, p1_y);
+                float maxx2 = std::max(p2_x, p3_x);
+                float maxy2 = std::max(p2_y, p3_y);
+                float minx2 = std::min(p2_x, p3_x);
+                float miny2 = std::min(p2_y, p3_y);
+                /*if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001
+                        && ((maxx2 <= maxx1 && maxx2 > minx1) || (maxx2 < maxx1 && maxx2 >= minx1)
+                            || (maxx2 >= maxx1 && maxx2 < minx1) || (maxx2 > maxx1 && maxx2 <= minx1) 
+                            || (maxy2 <= maxy1 && maxy2 > miny1) || (maxy2 < maxy1 && maxy2 >= miny1)
+                            || (maxy2 >= maxy1 && maxy2 < miny1) || (maxy2 > maxy1 && maxy2 >= miny1)
+                            || (maxx1 == maxx2 && minx1 == minx2 && maxy1 == maxy2 && miny1 == miny2))) return true;
+                            */
+                if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001
+                        && ((maxx1 == maxx2 && (minx2 >= minx1 && minx2 <= maxx1))
+                            || ((minx1 == minx2 && (maxx2 >= minx1 && maxx2 <= maxx1))))) return true;
             }
             return (s > 0 && s < 1 && t > 0 && t < 1);
         }
@@ -478,6 +522,7 @@ class ploc_t {
 
 ploc_t *create_ploc(std::vector<std::vector<int> > points, std::vector<std::vector<int> > triangles, int n, int m) {
     ploc_t *ploc = new ploc_t(points, triangles, n, m);
+    return ploc;
 }
 
 
@@ -502,8 +547,8 @@ int main() {
     k = 0;
 
     // distance between 2 points
-    int pointOS = 5;
-    int max = 8;
+    int pointOS = 15;
+    int max = 300;
     int n = max*max + 3;
     int m = (max-1)*(max-1)*2 + (max*4);
     // init points and triangles vectors
@@ -580,9 +625,18 @@ int main() {
     }
     printf("Prepared %d triangles \n", k);
 
-    print(points, triangles);
-    int x;
-    std::cin >> x;
+    //print(points, triangles);
+    //int x;
+    //std::cin >> x;
     ploc_t *pl;
     pl = create_ploc(points, triangles, n, m); 
+
+   
+    std::cout << "Top of point location tree" << std::endl;
+    for(int ni = 0; ni < pl->m_triangles.back().size(); ni++) {
+        std::cout << pl->m_triangles.back()[ni]->m_a << " " << pl->m_triangles.back()[ni]->m_b << " " << pl->m_triangles.back()[ni]->m_c << std::endl;
+        for(int nj = 0; nj < pl->m_triangles.back()[ni]->subTriangles.size(); nj++) {
+            std::cout << "Subtriangles: " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_a << " " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_b << " " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_c << std::endl;
+        }
+    }
 }
