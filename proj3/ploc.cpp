@@ -292,19 +292,15 @@ class ploc_t {
                         && std::find(hole.begin(), hole.end(), hole[ni]) != hole.end()) {
                     bool midpit = false;
                     cond1(hole, delTr, midpit, j, ni, delTr.size());
-                    //std::cout << "Testing: " << hole[j] << " " << hole[ni] << " " << midpit << std::endl;
                     if(!midpit) continue;
                     midpit = false;
                     cond1(hole, delTr, midpit, k, ni, delTr.size());
-                    //std::cout << "Testing: " << hole[k] << " " << hole[ni] << " " << midpit << std::endl;
                     if(!midpit) continue;
                     Triangle *newTriangle = new Triangle(ni, hole[j], hole[k], hole[ni]);
                     m_vertices[hole[j]]->addNeighbor(hole[k]);
                     m_vertices[hole[k]]->addNeighbor(hole[j]);
 
-                    //std::cout << "Adding diagonal: " << hole[j] << " " << hole[k] << std::endl;
                     triangulationCount++;
-                    //std::cout << triangulationCount << std::endl;
                     // add sub triangles
                     for(int dtri = 0; dtri < delTr.size(); dtri++) {
                         // when do triangles overlap?
@@ -364,10 +360,76 @@ class ploc_t {
                                                 newTriangle->addSubface(t);
                                             }
                     }
+                    if(newTriangle->subTriangles.size() == 0) {
+                        int a, b, c;
+                        a = newTriangle->m_a;
+                        b = newTriangle->m_b;
+                        c = newTriangle->m_c;
+                        std::cout << "Did not add a subTriangle" << std::endl;
+                        std::cout << "New Triangle: " << newTriangle->m_a << " " << newTriangle->m_b << " " << newTriangle->m_c << std::endl;
+                        std::cout << "Coordinates: " << originalPoints[a][0] << " " << originalPoints[a][1] << " " << originalPoints[b][0] << " " << originalPoints[b][1] << " " << originalPoints[c][0] << " " << originalPoints[c][1] << std::endl;
+                        std::cout << "\nDeleted triangles" << std::endl;
+                        for(int i = 0; i < delTr.size(); i++) {
+                            a = delTr[i]->m_a;
+                            b = delTr[i]->m_b;
+                            c = delTr[i]->m_c;
+                            std::cout << "Del Tr " << i << ": " << originalPoints[a][0] << " " << originalPoints[a][1] << " " << originalPoints[b][0] << " " << originalPoints[b][1] << " " << originalPoints[c][0] << " " << originalPoints[c][1] << std::endl;
+                        }
+                        int x;
+                        std::cin >> x;
+                    }
                     m_triangles.back().push_back(newTriangle);
                 }
             }
 
+        }
+
+        int query(const float x, const float y) {
+            Triangle *currTr = m_triangles.back()[1];
+            while(currTr->subTriangles.size() != 0) {
+                //std::cout << currTr->m_a << " " << currTr->m_b << " " << currTr->m_c << std::endl;
+                bool insideCurrTr = false;
+                for(int i = 0; i < currTr->subTriangles.size(); i++) {
+                    int a, b, c;
+                    a = currTr->subTriangles[i]->m_a;
+                    b = currTr->subTriangles[i]->m_b;
+                    c = currTr->subTriangles[i]->m_c;
+                    std::cout << "Subtriangle " << i << ": " << currTr->m_label << " " << a << " " << b << " " << c << std::endl;
+                    std::cout << originalPoints[a][0] << " " << originalPoints[a][1] << "   " << originalPoints[b][0] << " " << originalPoints[b][1] << "   " << originalPoints[c][0] << " " << originalPoints[c][1] << "   " << x << " " << y << std::endl;
+                    if(pit(originalPoints[a][0], originalPoints[a][1],
+                                originalPoints[b][0], originalPoints[b][1],
+                                originalPoints[c][0], originalPoints[c][1],
+                                x, y)) {
+                        insideCurrTr = true;
+                        currTr = currTr->subTriangles[i];
+                        std::cout << currTr->subTriangles.size() << std::endl;
+                        break;
+                    }
+                }
+                if(insideCurrTr == true) continue;
+                for(int j = 0; j < currTr->subTriangles.size(); j++) {
+                    int a, b, c;
+                    a = currTr->subTriangles[j]->m_a;
+                    b = currTr->subTriangles[j]->m_b;
+                    c = currTr->subTriangles[j]->m_c;
+                    if(pit(originalPoints[a][0], originalPoints[a][1],
+                                originalPoints[b][0], originalPoints[b][1],
+                                originalPoints[c][0], originalPoints[c][1],
+                                x, y, true)) {
+                        std::cout << "SDGSDGS" << std::endl;
+                        insideCurrTr = true;
+                        currTr = currTr->subTriangles[j];
+                        break;
+                    }
+                }
+                if(insideCurrTr == false) {
+
+                    return -1;
+                }
+            }
+
+            return currTr->m_label;
+            
         }
 
         void cond1(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
@@ -423,7 +485,6 @@ class ploc_t {
             float beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 -   y3)); 
             float gamma = 1.0f - alpha - beta;
             if(edge == true) {
-                //return (alpha >= 0) && (beta >= 0) && (gamma >= 0);
                 return pol(x1,y1,x2,y2,x,y) || pol(x1,y1,x3,y3,x,y) || pol(x2,y2,x3,y3,x,y) ||
                     (alpha >= 0 && beta >= 0 && gamma >= 0);
             }
@@ -432,6 +493,7 @@ class ploc_t {
 
         // point on line test
         bool pol(float x1, float y1, float x2, float y2, float x, float y) {
+            if((x2-x1) == 0 && x == x1 && ((y <= y1 && y >= y2) || (y >= y1 && y <= y2))) return true;
             float a = (y2-y1) / (x2 - x1);
             float b = y1 - a * x1;
             if(std::abs(y - (a * x + b)) < 0.001) {
@@ -466,20 +528,10 @@ class ploc_t {
                 float slope2 = (p3_y - p2_y) / (p3_x - p2_x);
                 float yint2 = p2_y - slope2 * p2_x;
                 float maxx1 = std::max(p0_x, p1_x);
-                float maxy1 = std::max(p0_y, p1_y);
                 float minx1 = std::min(p0_x, p1_x);
-                float miny1 = std::min(p0_y, p1_y);
                 float maxx2 = std::max(p2_x, p3_x);
-                float maxy2 = std::max(p2_y, p3_y);
                 float minx2 = std::min(p2_x, p3_x);
-                float miny2 = std::min(p2_y, p3_y);
-                /*if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001
-                  && ((maxx2 <= maxx1 && maxx2 > minx1) || (maxx2 < maxx1 && maxx2 >= minx1)
-                  || (maxx2 >= maxx1 && maxx2 < minx1) || (maxx2 > maxx1 && maxx2 <= minx1) 
-                  || (maxy2 <= maxy1 && maxy2 > miny1) || (maxy2 < maxy1 && maxy2 >= miny1)
-                  || (maxy2 >= maxy1 && maxy2 < miny1) || (maxy2 > maxy1 && maxy2 >= miny1)
-                  || (maxx1 == maxx2 && minx1 == minx2 && maxy1 == maxy2 && miny1 == miny2))) return true;
-                  */
+               
                 if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001
                         && ((maxx1 == maxx2 && (minx2 >= minx1 && minx2 <= maxx1))
                             || ((minx1 == minx2 && (maxx2 >= minx1 && maxx2 <= maxx1))))) return true;
@@ -525,8 +577,8 @@ ploc_t *create_ploc(std::vector<std::vector<int> > points, std::vector<std::vect
     return ploc;
 }
 
-int query_ploc(ploc_t *pl, int x, int y) {
-
+int query_ploc(ploc_t *pl, float x, float y) {
+    return pl->query(x, y);
 }
 
 void print(std::vector<std::vector<int> > points, std::vector<std::vector<int> > triangles) {
@@ -550,7 +602,7 @@ int main() {
     k = 0;
 
     // distance between 2 points
-    int pointOS = 15;
+    int pointOS = 5;
     int max = 300;
     int n = max*max + 3;
     int m = (max-1)*(max-1)*2 + (max*4);
@@ -630,17 +682,20 @@ int main() {
 
     ploc_t *pl;
     pl = create_ploc(points, triangles, n, m); 
-    /*
+    
     for(i=0; i<10000; i++)
-    {  int a,b,c,x,y, t; 
+    {  int a,b,c,t;
+        float x,y; 
         j = (rand()%180001)+1;
-        a = triangles[j][0]; b=triangles[j][1]; c=triangles[j][2];       
-        x = (points[a][0]+points[b][0]+points[c][0])/3;
-        y = (points[a][1]+points[b][1]+points[c][1])/3;
+        a = triangles[j][0]; b=triangles[j][1]; c=triangles[j][2]; 
+        //std::cout << points[a][0] << " " << points[b][0] << " " << points[c][0] << std::endl;
+        //std::cout << points[a][1] << " " << points[b][1] << " " << points[c][1] << std::endl;
+        x = (static_cast<float>(points[a][0])+static_cast<float>(points[b][0])+static_cast<float>(points[c][0]))/3;
+        y = (static_cast<float>(points[a][1])+static_cast<float>(points[b][1])+static_cast<float>(points[c][1]))/3;
         t = query_ploc(pl, x,y);
         if ( t!= j )
         {  printf("Error on triangle %d, misidentified as triangle %d\n",j,t);
-            printf("Point (%d,%d) should be in triangle (%d,%d), (%d,%d), (%d,%d)\n",
+            printf("Point (%f,%f) should be in triangle (%d,%d), (%d,%d), (%d,%d)\n",
                     x,y, points[a][0],points[a][1],points[b][0], points[b][1],
                     points[c][0], points[c][1]);
             printf("Instead claimed in triangle (%d,%d), (%d,%d), (%d,%d)\n",
@@ -649,8 +704,11 @@ int main() {
                     points[triangles[t][2]][0], points[triangles[t][2]][1] );
             exit(0);
         }
+        else {
+            std::cout << "Fine" << std::endl;
+        }
     }
-    */
+    
     std::cout << "Top of point location tree" << std::endl;
     for(int ni = 0; ni < pl->m_triangles.back().size(); ni++) {
         std::cout << pl->m_triangles.back()[ni]->m_a << " " << pl->m_triangles.back()[ni]->m_b << " " << pl->m_triangles.back()[ni]->m_c << std::endl;
