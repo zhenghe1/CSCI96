@@ -1,3 +1,7 @@
+/*
+ * Zheng He
+ */
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -99,9 +103,7 @@ class ploc_t {
 
                 // retriangulate
                 retriangulate(deletedTr, independentSet, pointInfo, holes);
-                //if(m_triangles.back().size() == 1) break;
             }
-            //printTr();
         }
 
         // initializes the ploc structure with original points and triangles
@@ -138,7 +140,6 @@ class ploc_t {
 
             // find points for independent set
             // for each point, get its neighbors as a hole
-            std::cout << "\nIndependent Set: ";
             for(int i = 0; i < m_vertices.size() - 3; i++) {
                 if(m_vertices[i] != NULL 
                         && pointInfo[i] == 0 
@@ -150,14 +151,10 @@ class ploc_t {
                         hole.push_back(m_vertices[i]->neighbors[j]);
                     }
                     independentSet.push_back(i);
-                    std::cout << i << " ";
-                    //m_vertices[i] = NULL;
                     holes.push_back(hole);
 
                 }
             }
-            std::cout << std::endl;
-
             return pointInfo;
         }
 
@@ -205,20 +202,8 @@ class ploc_t {
                 int holeSize = holes[i].size();
                 int delTrSize = deletedTr[independentSet[i]].size();
                 // hole size n = n - 2 triangulations
-                int triangulationCount = 0;
 
                 if(holeSize == 3) {
-                    if(deletedTr[independentSet[i]].size() != 3) {
-                        std::cout << "Independent Point: " << originalPoints[independentSet[i]][0] << " " << originalPoints[independentSet[i]][1] << std::endl;
-                        std::cout << "Not 3 subfaces: " << deletedTr[independentSet[i]].size() << std::endl;
-                        std::cout << "Triangle: " << holes[i][0] << " " << holes[i][1] << " " << holes[i][2] << std::endl;
-                        std::cout << "Deleted Triangles: " << std::endl;
-                        for(int j = 0; j < deletedTr[independentSet[i]].size(); j++) {
-                            std::cout << originalPoints[deletedTr[independentSet[i]][j]->m_a][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_a][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0]<< std::endl;
-                        }
-                        int x;
-                        std::cin >> x;
-                    }
                     Triangle *newTriangle = new Triangle(i, holes[i][0], holes[i][1], holes[i][2]);
                     newTriangle->addSubface(deletedTr[independentSet[i]][0]);
                     newTriangle->addSubface(deletedTr[independentSet[i]][1]);
@@ -235,52 +220,28 @@ class ploc_t {
                                     && std::find(m_vertices[holes[i][j]]->neighbors.begin(),
                                         m_vertices[holes[i][j]]->neighbors.end(),
                                         holes[i][k]) == m_vertices[holes[i][j]]->neighbors.end()) {
-                                //std::cout << "\nIteration: " << i << ". Considering diagonal: " << holes[i][j] << " " << holes[i][k] << std::endl;
                                 // check condition 1: if midpoint of diagonal is in any of previous triangles
                                 cond1(holes[i], deletedTr[independentSet[i]], pitest, j, k, delTrSize);
-                                //std::cout << pitest << " ";
                                 // if does not pass point in triangle test, continue to next k
                                 if(!pitest) continue;
 
                                 // check condition 2: if diagonal intersects any non-adjacient line to j
                                 cond2(holes[i], itest, j, k, holeSize);
-                                //std::cout << itest << std::endl;
                                 // if there is intersection, continue to next k
                                 if(itest) continue;
 
                                 // can triangulate, all tests passed
                                 // add diagonal from j to k
                                 // create new triangles and add them to new triangles vector
-                                triangulate(holes[i], j, k, deletedTr[independentSet[i]], triangulationCount);
+                                triangulate(holes[i], j, k, deletedTr[independentSet[i]]);
                             }
                         }
                     }
-                    if(triangulationCount != holeSize - 2) {
-                        std::cout << "Did not fully triangulation: " << triangulationCount << std::endl;
-                        std::cout << "Independent Point: " << independentSet[i] << " " << originalPoints[independentSet[i]][0] << " " << originalPoints[independentSet[i]][1] << std::endl;
-                        std::cout << "Holes: " << std::endl;
-                        for(int j = 0; j < holeSize; j++) {
-                            std::cout << "ID: " << holes[i][j] << " " << originalPoints[holes[i][j]][0] << " " << originalPoints[holes[i][j]][1] << std::endl;
-                        }
-                        std::cout << "Deleted Triangles: " << std::endl;
-                        for(int j = 0; j < deletedTr[independentSet[i]].size(); j++) {
-                            std::cout << originalPoints[deletedTr[independentSet[i]][j]->m_a][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_a][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_b][1] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][0] << " " << originalPoints[deletedTr[independentSet[i]][j]->m_c][1]<< std::endl;
-                        }
-                        int x;
-                        std::cin >> x;
-                    }
-                } else {
-                    std::cout << "\nDEBUG: hole size = " << holeSize << std::endl;
-
                 }
             }
-            //printBackTr();
-            //int x;
-            //std::cin >> x;
         }
 
-        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr, int &triangulationCount) {
-
+        void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr) {
             for(int ni = 0; ni < hole.size(); ni++) {
                 // find same neighbor, ni of j and k to create triangle ni j k
                 if(std::find(m_vertices[hole[j]]->neighbors.begin(), 
@@ -300,7 +261,6 @@ class ploc_t {
                     m_vertices[hole[j]]->addNeighbor(hole[k]);
                     m_vertices[hole[k]]->addNeighbor(hole[j]);
 
-                    triangulationCount++;
                     // add sub triangles
                     for(int dtri = 0; dtri < delTr.size(); dtri++) {
                         // when do triangles overlap?
@@ -360,24 +320,6 @@ class ploc_t {
                                                 newTriangle->addSubface(t);
                                             }
                     }
-                    if(newTriangle->subTriangles.size() == 0) {
-                        int a, b, c;
-                        a = newTriangle->m_a;
-                        b = newTriangle->m_b;
-                        c = newTriangle->m_c;
-                        std::cout << "Did not add a subTriangle" << std::endl;
-                        std::cout << "New Triangle: " << newTriangle->m_a << " " << newTriangle->m_b << " " << newTriangle->m_c << std::endl;
-                        std::cout << "Coordinates: " << originalPoints[a][0] << " " << originalPoints[a][1] << " " << originalPoints[b][0] << " " << originalPoints[b][1] << " " << originalPoints[c][0] << " " << originalPoints[c][1] << std::endl;
-                        std::cout << "\nDeleted triangles" << std::endl;
-                        for(int i = 0; i < delTr.size(); i++) {
-                            a = delTr[i]->m_a;
-                            b = delTr[i]->m_b;
-                            c = delTr[i]->m_c;
-                            std::cout << "Del Tr " << i << ": " << originalPoints[a][0] << " " << originalPoints[a][1] << " " << originalPoints[b][0] << " " << originalPoints[b][1] << " " << originalPoints[c][0] << " " << originalPoints[c][1] << std::endl;
-                        }
-                        int x;
-                        std::cin >> x;
-                    }
                     m_triangles.back().push_back(newTriangle);
                 }
             }
@@ -387,22 +329,18 @@ class ploc_t {
         int query(const float x, const float y) {
             Triangle *currTr = m_triangles.back()[1];
             while(currTr->subTriangles.size() != 0) {
-                //std::cout << currTr->m_a << " " << currTr->m_b << " " << currTr->m_c << std::endl;
                 bool insideCurrTr = false;
                 for(int i = 0; i < currTr->subTriangles.size(); i++) {
                     int a, b, c;
                     a = currTr->subTriangles[i]->m_a;
                     b = currTr->subTriangles[i]->m_b;
                     c = currTr->subTriangles[i]->m_c;
-                    std::cout << "Subtriangle " << i << ": " << currTr->m_label << " " << a << " " << b << " " << c << std::endl;
-                    std::cout << originalPoints[a][0] << " " << originalPoints[a][1] << "   " << originalPoints[b][0] << " " << originalPoints[b][1] << "   " << originalPoints[c][0] << " " << originalPoints[c][1] << "   " << x << " " << y << std::endl;
                     if(pit(originalPoints[a][0], originalPoints[a][1],
                                 originalPoints[b][0], originalPoints[b][1],
                                 originalPoints[c][0], originalPoints[c][1],
                                 x, y)) {
                         insideCurrTr = true;
                         currTr = currTr->subTriangles[i];
-                        std::cout << currTr->subTriangles.size() << std::endl;
                         break;
                     }
                 }
@@ -416,7 +354,6 @@ class ploc_t {
                                 originalPoints[b][0], originalPoints[b][1],
                                 originalPoints[c][0], originalPoints[c][1],
                                 x, y, true)) {
-                        std::cout << "SDGSDGS" << std::endl;
                         insideCurrTr = true;
                         currTr = currTr->subTriangles[j];
                         break;
@@ -429,7 +366,7 @@ class ploc_t {
             }
 
             return currTr->m_label;
-            
+
         }
 
         void cond1(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
@@ -531,44 +468,12 @@ class ploc_t {
                 float minx1 = std::min(p0_x, p1_x);
                 float maxx2 = std::max(p2_x, p3_x);
                 float minx2 = std::min(p2_x, p3_x);
-               
+
                 if(std::abs(slope1 - slope2) < 0.001 && std::abs(yint1 - yint2) < 0.001
                         && ((maxx1 == maxx2 && (minx2 >= minx1 && minx2 <= maxx1))
                             || ((minx1 == minx2 && (maxx2 >= minx1 && maxx2 <= maxx1))))) return true;
             }
             return (s > 0 && s < 1 && t > 0 && t < 1);
-        }
-
-        void printTr() {
-            for(int i = 0; i < m_triangles.size(); i++) {
-                std::cout << "\nIteration: " << i << std::endl;
-                for(int j = 0; j < m_triangles[i].size(); j++) {
-                    std::cout << m_triangles[i][j]->m_label << " " << m_triangles[i][j]->m_a << " " << m_triangles[i][j]->m_b << " " << m_triangles[i][j]->m_c << std::endl;
-                    if(m_triangles[i][j]->subTriangles.size() > 0) {
-                        for(int k = 0; k < m_triangles[i][j]->subTriangles.size(); k++) {
-                            std::cout << "Sub-triangle: " << m_triangles[i][j]->subTriangles[k]->m_label << " " << m_triangles[i][j]->subTriangles[k]->m_a << " " << m_triangles[i][j]->subTriangles[k]->m_b << " " << m_triangles[i][j]->subTriangles[k]->m_c << std::endl;
-                        }
-                    }
-                }
-            }
-        }
-
-        void printBackTr() {
-            std::vector<Triangle *> back = m_triangles.back();
-            std::cout << "\n Previous triangulation" << std::endl;
-            for(int i = 0; i < back.size(); i++) {
-                std::cout << back[i]->m_label << " " << back[i]->m_a << " " << back[i]->m_b << " " << back[i]->m_c << std::endl;
-                if(back[i]->subTriangles.size() > 0) {
-                    for(int j = 0; j < back[i]->subTriangles.size(); j++) {
-                        std::cout << "Sub-triangle: ";
-                        std::cout << back[i]->subTriangles[j]->m_label;
-                        std::cout << " " << back[i]->subTriangles[j]->m_a << " ";
-                        std::cout << back[i]->subTriangles[j]->m_b << " ";
-                        std::cout << back[i]->subTriangles[j]->m_c << std::endl;
-                    }
-                    //std::cout << std::endl;
-                }
-            }
         }
 };
 
@@ -581,139 +486,88 @@ int query_ploc(ploc_t *pl, float x, float y) {
     return pl->query(x, y);
 }
 
-void print(std::vector<std::vector<int> > points, std::vector<std::vector<int> > triangles) {
-    std::cout << "\n---------- Points ----------" << std::endl;
-    for(int i = 0; i < points.size(); i++) {
-        std::cout << i << ": " << points[i][0] << "\t" << points[i][1] << std::endl; 
-    }
-
-    std::cout << "\n---------- Triangles ----------" << std::endl;
-    for(int i = 0; i < triangles.size(); i++) {
-        std::cout << i << ": " << triangles[i][0] << "\t" << triangles[i][1] << "\t" << triangles[i][2] << std::endl;
-    }
-
-    std::cout << std::endl;
-}
-
 
 int main() {
-    // for iterations
-    int i, j, k;
-    k = 0;
-
-    // distance between 2 points
-    int pointOS = 5;
-    int max = 300;
-    int n = max*max + 3;
-    int m = (max-1)*(max-1)*2 + (max*4);
-    // init points and triangles vectors
-    std::vector<std::vector<int> > points(n, std::vector<int>(2, 0));
-    std::vector<std::vector<int> > triangles(m, std::vector<int>(3, 0));
-
-    // generate points
-    for(i = 0; i < max; i++) {
-        for(j = 0; j < max; j++) {
-            points[k][0] = pointOS*i;
-            points[k][1] = pointOS*j;
-            k++;
+    std::vector<std::vector<int> > points(90003, std::vector<int>(2, 0));
+    std::vector<std::vector<int> > triangles(180003, std::vector<int>(3,0));
+    int i,j, k;
+    k=0;
+    for(i=0; i<300; i++)
+    {  for(j=0; j<300; j++)
+        {  points[k][0] = 15*i;  points[k][1] = 15*j;
+            k +=1;
         }
     }
-
-    // create outer points for the outside triangle
-    points[k][0] = 0-(pointOS*max); points[k++][1] = 0-pointOS;
-    points[k][0] = pointOS*max*2;   points[k++][1] = 0-pointOS;
-    points[k][0] = (pointOS*max)/2; points[k++][1] = pointOS*max*2;
+    points[k][0] = -4500;  points[k++][1] = -15;
+    points[k][0] =  9000;  points[k++][1] = -15;
+    points[k][0] =  2250;  points[k++][1] = 9000;
     printf("Prepared %d points\n", k);
-
-    // generate triangles
-    k = 0;
-    // indices of outer points
-    int outer1 = max*max;
-    int outer2 = max*max + 1;
-    int outer3 = max*max + 2;
-
-    triangles[k][0] = outer1;
-    triangles[k][1] = outer2;
-    triangles[k++][2] = outer3;
-    for(i = 0; i < max - 1; i++) {
-        triangles[k][0] = i;
-        triangles[k][1] = i + 1;
-        triangles[k++][2] = outer1;
+    k=0;
+    triangles[k][0]=90000;  
+    triangles[k][1]=90001;  
+    triangles[k++][2]=90002;
+    for(i=0; i<299; i++)
+    {   triangles[k][0]=i;  
+        triangles[k][1]=i+1;  
+        triangles[k++][2]=90000;
     }
-
-    triangles[k][0] = max - 1;
-    triangles[k][1] = outer1;
-    triangles[k++][2] = outer3;
-    for(i = 0; i < max - 1; i++) {
-        triangles[k][0] = max-1 + max*i;
-        triangles[k][1] = max-1 + max*(i+1);
-        triangles[k++][2] = outer3;
+    triangles[k][0]=299;  
+    triangles[k][1]=90000;  
+    triangles[k++][2]=90002;
+    for(i=0; i<299; i++)
+    {   triangles[k][0]=299 + 300*i;  
+        triangles[k][1]=299 + 300*(i+1);  
+        triangles[k++][2]=90002;
     }
-
-    triangles[k][0] = outer3;
-    triangles[k][1] = outer1 - 1;
-    triangles[k++][2] = outer2;
-    for(i = 0; i < max - 1; i++) {
-        triangles[k][0] = (max-1)*max + i;
-        triangles[k][1] = (max-1)*max + i + 1;
-        triangles[k++][2] = outer2;
+    triangles[k][0]=90002;  
+    triangles[k][1]=89999;  
+    triangles[k++][2]=90001;
+    for(i=0; i<299; i++)
+    {   triangles[k][0]=299*300 +i;  
+        triangles[k][1]=299*300 +i+1;  
+        triangles[k++][2]=90001;
     }
-
-    triangles[k][0] = outer1;
-    triangles[k][1] = outer1 - max;
-    triangles[k++][2] = outer2;
-    for(i = 0; i < max - 1; i++) {
-        triangles[k][0] = max * i;
-        triangles[k][1] = max * (i+1);
-        triangles[k++][2] = outer1;
+    triangles[k][0]=90000;  
+    triangles[k][1]=89700;  
+    triangles[k++][2]=90001;
+    for(i=0; i<299; i++)
+    {   triangles[k][0]=300*i;  
+        triangles[k][1]=300*(i+1);  
+        triangles[k++][2]=90000;
     }
-
-    for(i = 0; i < max - 1; i++) {
-        for(j = 0; j < max - 1; j++) {
-            triangles[k][0] = max * i + j;
-            triangles[k][1] = max * (i+1) + j;
-            triangles[k++][2] = max * i + j + 1;
-            triangles[k][0] = max * (i+1) + j + 1;
-            triangles[k][1] = max * (i+1) + j;
-            triangles[k++][2] = max * i + j + 1;
+    for(i=0; i<299; i++)
+    {  for(j=0; j<299; j++)
+        {  triangles[k][0]=300*i + j;  
+            triangles[k][1]=300*(i+1) + j;  
+            triangles[k++][2]=300*i+j+1;
+            triangles[k][0]=300*(i+1) + j+1;  
+            triangles[k][1]=300*(i+1) + j;  
+            triangles[k++][2]=300*i+j+1;
         }
     }
-    printf("Prepared %d triangles \n", k);
+    printf("Prepared %d triangles\n", k);   
 
-    ploc_t *pl;
-    pl = create_ploc(points, triangles, n, m); 
-    
-    for(i=0; i<10000; i++)
-    {  int a,b,c,t;
-        float x,y; 
-        j = (rand()%180001)+1;
-        a = triangles[j][0]; b=triangles[j][1]; c=triangles[j][2]; 
-        //std::cout << points[a][0] << " " << points[b][0] << " " << points[c][0] << std::endl;
-        //std::cout << points[a][1] << " " << points[b][1] << " " << points[c][1] << std::endl;
-        x = (static_cast<float>(points[a][0])+static_cast<float>(points[b][0])+static_cast<float>(points[c][0]))/3;
-        y = (static_cast<float>(points[a][1])+static_cast<float>(points[b][1])+static_cast<float>(points[c][1]))/3;
-        t = query_ploc(pl, x,y);
-        if ( t!= j )
-        {  printf("Error on triangle %d, misidentified as triangle %d\n",j,t);
-            printf("Point (%f,%f) should be in triangle (%d,%d), (%d,%d), (%d,%d)\n",
-                    x,y, points[a][0],points[a][1],points[b][0], points[b][1],
-                    points[c][0], points[c][1]);
-            printf("Instead claimed in triangle (%d,%d), (%d,%d), (%d,%d)\n",
-                    points[triangles[t][0]][0], points[triangles[t][0]][1],
-                    points[triangles[t][1]][0], points[triangles[t][1]][1],
-                    points[triangles[t][2]][0], points[triangles[t][2]][1] );
-            exit(0);
-        }
-        else {
-            std::cout << "Fine" << std::endl;
+    { ploc_t *pl;
+        pl = create_ploc( points, triangles, 90003, 180002); 
+        for(i=0; i<10000; i++)
+        {  int a,b,c,x,y, t; 
+            j = (rand()%180001)+1;
+            a = triangles[j][0]; b=triangles[j][1]; c=triangles[j][2];       
+            x = (points[a][0]+points[b][0]+points[c][0])/3;
+            y = (points[a][1]+points[b][1]+points[c][1])/3;
+            t = query_ploc(pl, x,y);
+            if ( t!= j )
+            {  printf("Error on triangle %d, misidentified as triangle %d\n",j,t);
+                printf("Point (%d,%d) should be in triangle (%d,%d), (%d,%d), (%d,%d)\n",
+                        x,y, points[a][0],points[a][1],points[b][0], points[b][1],
+                        points[c][0], points[c][1]);
+                printf("Instead claimed in triangle (%d,%d), (%d,%d), (%d,%d)\n",
+                        points[triangles[t][0]][0], points[triangles[t][0]][1],
+                        points[triangles[t][1]][0], points[triangles[t][1]][1],
+                        points[triangles[t][2]][0], points[triangles[t][2]][1] );
+                exit(0);
+            }
         }
     }
-    
-    std::cout << "Top of point location tree" << std::endl;
-    for(int ni = 0; ni < pl->m_triangles.back().size(); ni++) {
-        std::cout << pl->m_triangles.back()[ni]->m_a << " " << pl->m_triangles.back()[ni]->m_b << " " << pl->m_triangles.back()[ni]->m_c << std::endl;
-        for(int nj = 0; nj < pl->m_triangles.back()[ni]->subTriangles.size(); nj++) {
-            std::cout << "Subtriangles: " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_a << " " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_b << " " << pl->m_triangles.back()[ni]->subTriangles[nj]->m_c << std::endl;
-        }
-    }
+    printf("Passed test\n");
 }
