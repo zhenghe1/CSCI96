@@ -16,15 +16,20 @@
  * Point Location:
  *      get a triangulation
  *      find independent set of points
- *      delete points from independent set to create holes in triangulation
+ *      delete points obtained from independent set to create holes in triangulation
+ *      Holes are polygons that have more than 3 vertices
  *      retriangulate the holes
  *          have new triangulations point to previous triangulations if they overlap
  *      repeat until there is only the outer triangle left
+ *      this creates a directed acyclic graph with the root being the largest triangle with pointers to 
+ *      sub-hierarchies of previous triangles that overlap on the planar graph
+ *      for querying - start from root of acyclic graph and use the point in triangle test
  */
 
-// Solution to having a larger triangle encompass a smaller one
-// use cond1
-
+/*
+ * Object used for keeping track of each point and its neighbors
+ * Function addNeighbor checks for duplicate points
+ */
 class Node {
 
     public:
@@ -46,6 +51,12 @@ class Node {
 
 };
 
+/*
+ * Triangle object holds data for each point of a triangle and the position
+ *  Note: position only matters for the original set of triangles since querying a point requires the position of an original triangle.
+ * Has a vector of pointers to triangles that are sub-triangles
+ *  Note: original triangulation has no sub-triangles
+ */
 class Triangle {
 
     public:
@@ -65,16 +76,17 @@ class Triangle {
         m_b(t.m_b),
         m_c(t.m_c) {}
 
-        bool containsVertex(int v) {
-            return (m_a == v || m_b == v || m_c == v);
-        }
-
-        void addSubface(Triangle *t) {
+        void addSubTr(Triangle *t) {
             subTriangles.push_back(t);
         }
-
 };
 
+/*
+ * Point location data structure.
+ * Member Variables:
+ *      m_vertices is the set of points that the data structure manipulates.
+ *      m_triangles is a 2D container of triangles from each hierarchy.
+ */
 class ploc_t {
 
     public:
@@ -83,30 +95,27 @@ class ploc_t {
         std::vector<std::vector<Triangle *> > m_triangles;
 
         explicit ploc_t() {}
+
+        /*
+         * The main algorithm:
+         * Initialize the objects
+         * Loop triangulation refinement algorithm until the most recent triangulation has a size less than 3
+         */
         explicit ploc_t(std::vector<std::vector<int> > points, std::vector<std::vector<int> > triangles, int n, int m) : originalPoints(points) {
             init(points, triangles, n, m);
 
-            // triangulation refinement
-            // loop until last triangulation has only 1 triangle
             while(m_triangles.back().size() >= 3) {
                 std::vector<std::vector<int> > holes;
-                // holds the indices for triangles to be deleted
                 std::vector<std::vector<Triangle *> > deletedTr;
-                // pointInfo - holds information as to whether a point needs to be deleted
-                // and if it can be added to the independent set
                 std::vector<char> pointInfo;
 
                 std::vector<int> independentSet;
                 pointInfo = getIndependentSet(holes, n, independentSet);
-
                 deletedTr = deleteIS(pointInfo);
-
-                // retriangulate
                 retriangulate(deletedTr, independentSet, pointInfo, holes);
             }
         }
 
-        // initializes the ploc structure with original points and triangles
         void init(std::vector<std::vector<int> > points, std::vector<std::vector<int> > triangles, int n, int m) {
             for(int i = 0; i < n; i++) {
                 m_vertices.push_back(new Node());
@@ -120,7 +129,6 @@ class ploc_t {
 
                 v_triangles.push_back(new Triangle(i, a, b, c));
 
-                // add neighbors
                 m_vertices[a]->addNeighbor(b);
                 m_vertices[a]->addNeighbor(c);
                 m_vertices[b]->addNeighbor(a);
@@ -132,14 +140,18 @@ class ploc_t {
             m_triangles.push_back(v_triangles);
         }
 
+        /*
+         * Independent Set: Consists of points that are not neighbors to any of each other.
+         * Variable pointInfo has values 0, 1, 2.
+         *      0 - point is valid and can be added to the independent set
+         *      1 - point cannot be added to the independent set
+         *      2 - point will be deleted from the triangulation
+         * Variable holes is aligned in index with the independent set
+         */
         std::vector<char> getIndependentSet(std::vector<std::vector<int> > &holes, int n, std::vector<int> &independentSet) {
-            // badVertices - 1 = cannot add to the independent set
-            //               2 = point to be deleted
             std::vector<char> pointInfo(m_vertices.size());
             std::fill_n(pointInfo.begin(), n, 0);
 
-            // find points for independent set
-            // for each point, get its neighbors as a hole
             for(int i = 0; i < m_vertices.size() - 3; i++) {
                 if(m_vertices[i] != NULL 
                         && pointInfo[i] == 0 
@@ -158,8 +170,11 @@ class ploc_t {
             return pointInfo;
         }
 
-        // deletes points from the independent set
-        // returns deleted triangles indexed by the independent point that caused them to be deleted
+        /*
+         * Uses the independent set to delete points from the triangulation and m_vertices
+         * Returns the set of deleted triangles so that it can be used for creating the directed acyclic graph
+         *      deleted triangles are indexed by each deleted point
+         */
         std::vector<std::vector<Triangle *> > deleteIS(std::vector<char> &pointInfo) {
             std::vector<Triangle *> prevTr = m_triangles.back();
             int m = prevTr.size();
@@ -195,44 +210,40 @@ class ploc_t {
             return deletedTr;
         }
 
-        // hole of size 3 - already a triangle, just add the 3 subfaces
-        //
+        /*
+         * Two conditions must be met in order to triangulate 2 points in the hole
+         *      Condition 1 - The mid point between 2 points that are not adjacent to each other 
+         *                    must pass the point in triangle test in at least 1 of the deleted triangles
+         *      Condition 2 - The diagonal to be formed between 2 non-adjacent points 
+         *                    must not intersect any of the line segments already present
+         */
         void retriangulate(std::vector<std::vector<Triangle *> > &deletedTr, std::vector<int> &independentSet, std::vector<char> &pointInfo, std::vector<std::vector<int> > holes) {
             for(int i = 0; i < independentSet.size(); i++) {
                 int holeSize = holes[i].size();
                 int delTrSize = deletedTr[independentSet[i]].size();
-                // hole size n = n - 2 triangulations
 
                 if(holeSize == 3) {
                     Triangle *newTriangle = new Triangle(i, holes[i][0], holes[i][1], holes[i][2]);
-                    newTriangle->addSubface(deletedTr[independentSet[i]][0]);
-                    newTriangle->addSubface(deletedTr[independentSet[i]][1]);
-                    newTriangle->addSubface(deletedTr[independentSet[i]][2]);
+                    newTriangle->addSubTr(deletedTr[independentSet[i]][0]);
+                    newTriangle->addSubTr(deletedTr[independentSet[i]][1]);
+                    newTriangle->addSubTr(deletedTr[independentSet[i]][2]);
                     m_triangles.back().push_back(newTriangle);
                 } else if(holeSize > 3) {
                     for(int j = 0; j < holeSize; j++) {
                         for(int k = 0; k < holeSize; k++) {
-                            // points j and k are not the same, and not neighbors
-                            // cannot add diagonal to neighbor to create triangles
                             bool pitest = false;
                             bool itest = false;
-                            if(j != k
-                                    && std::find(m_vertices[holes[i][j]]->neighbors.begin(),
-                                        m_vertices[holes[i][j]]->neighbors.end(),
-                                        holes[i][k]) == m_vertices[holes[i][j]]->neighbors.end()) {
-                                // check condition 1: if midpoint of diagonal is in any of previous triangles
-                                cond1(holes[i], deletedTr[independentSet[i]], pitest, j, k, delTrSize);
-                                // if does not pass point in triangle test, continue to next k
+                            
+                            // Points j and k are not the same, and not neighbors
+                            if(j != k && std::find(m_vertices[holes[i][j]]->neighbors.begin(),
+                                                   m_vertices[holes[i][j]]->neighbors.end(),
+                                                   holes[i][k]) == m_vertices[holes[i][j]]->neighbors.end()) {
+                                midpointTest(holes[i], deletedTr[independentSet[i]], pitest, j, k, delTrSize);
                                 if(!pitest) continue;
 
-                                // check condition 2: if diagonal intersects any non-adjacient line to j
-                                cond2(holes[i], itest, j, k, holeSize);
-                                // if there is intersection, continue to next k
+                                intersectTest(holes[i], itest, j, k, holeSize);
                                 if(itest) continue;
 
-                                // can triangulate, all tests passed
-                                // add diagonal from j to k
-                                // create new triangles and add them to new triangles vector
                                 triangulate(holes[i], j, k, deletedTr[independentSet[i]]);
                             }
                         }
@@ -241,9 +252,12 @@ class ploc_t {
             }
         }
 
+        /*
+         * The 2 conditions have been met, now to triangulate the 2 points
+         */
         void triangulate(std::vector<int> hole, int j, int k, std::vector<Triangle *> delTr) {
             for(int ni = 0; ni < hole.size(); ni++) {
-                // find same neighbor, ni of j and k to create triangle ni j k
+                // Find same neighbor, ni of j and k to create triangle ni j k
                 if(std::find(m_vertices[hole[j]]->neighbors.begin(), 
                             m_vertices[hole[j]]->neighbors.end(),
                             hole[ni]) != m_vertices[hole[j]]->neighbors.end()
@@ -251,21 +265,24 @@ class ploc_t {
                             m_vertices[hole[k]]->neighbors.end(),
                             hole[ni]) != m_vertices[hole[k]]->neighbors.end()
                         && std::find(hole.begin(), hole.end(), hole[ni]) != hole.end()) {
+                    // Each potential line that makes up a potential triangle from triangulating must pass the mid point test
+                    //      This is to avoid creating big triangles that encompass smaller triangles
                     bool midpit = false;
-                    cond1(hole, delTr, midpit, j, ni, delTr.size());
+                    midpointTest(hole, delTr, midpit, j, ni, delTr.size());
                     if(!midpit) continue;
                     midpit = false;
-                    cond1(hole, delTr, midpit, k, ni, delTr.size());
+                    midpointTest(hole, delTr, midpit, k, ni, delTr.size());
                     if(!midpit) continue;
+                    
                     Triangle *newTriangle = new Triangle(ni, hole[j], hole[k], hole[ni]);
                     m_vertices[hole[j]]->addNeighbor(hole[k]);
                     m_vertices[hole[k]]->addNeighbor(hole[j]);
 
-                    // add sub triangles
                     for(int dtri = 0; dtri < delTr.size(); dtri++) {
-                        // when do triangles overlap?
-                        // either all previous 3 points are on lines or
-                        // any previous line intersects a line
+                        /* when do triangles overlap?
+                         * either all previous 3 points are on the lines of current triangle or
+                         * any previous line intersects a line from the current triangle
+                         */
                         Triangle *t = delTr[dtri];
                         if(pit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
                                     originalPoints[hole[k]][0], originalPoints[hole[k]][1],
@@ -279,7 +296,7 @@ class ploc_t {
                                     originalPoints[hole[k]][0], originalPoints[hole[k]][1],
                                     originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
                                     originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)) {
-                            newTriangle->addSubface(t);
+                            newTriangle->addSubTr(t);
                         }
                         else if((lit(originalPoints[hole[j]][0], originalPoints[hole[j]][1],
                                         originalPoints[hole[k]][0], originalPoints[hole[k]][1],
@@ -306,19 +323,19 @@ class ploc_t {
                                         originalPoints[t->m_b][0], originalPoints[t->m_b][1],
                                         originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
                                     || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                            originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                            originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                            originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1], true)
                                     || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                            originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                            originalPoints[t->m_a][0], originalPoints[t->m_a][1],
-                                            originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_a][0], originalPoints[t->m_a][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true)
                                     || lit(originalPoints[hole[k]][0], originalPoints[hole[k]][1],
-                                            originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
-                                            originalPoints[t->m_b][0], originalPoints[t->m_b][1],
-                                            originalPoints[t->m_c][0], originalPoints[t->m_c][1], true))) {
-                                                newTriangle->addSubface(t);
-                                            }
+                                        originalPoints[hole[ni]][0], originalPoints[hole[ni]][1],
+                                        originalPoints[t->m_b][0], originalPoints[t->m_b][1],
+                                        originalPoints[t->m_c][0], originalPoints[t->m_c][1], true))) {
+                            newTriangle->addSubTr(t);
+                        }
                     }
                     m_triangles.back().push_back(newTriangle);
                 }
@@ -326,6 +343,13 @@ class ploc_t {
 
         }
 
+        /*
+         * Querying for which original triangle a point is in
+         * Start from the root 
+         * Apply point in triangle test with any of the sub-triangles
+         *      This is done twice, first point on line not being valid, then with point on line being valid
+         * Returns the label of the triangle if a leaf is found, -1 otherwise.
+         */
         int query(const float x, const float y) {
             Triangle *currTr = m_triangles.back()[1];
             while(currTr->subTriangles.size() != 0) {
@@ -369,7 +393,7 @@ class ploc_t {
 
         }
 
-        void cond1(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
+        void midpointTest(std::vector<int> hole, std::vector<Triangle *> tr, bool &pitest, int j, int k, int delTrSize) {
             float midx, midy;
             midx = (static_cast<float>(originalPoints[hole[j]][0]) + static_cast<float>(originalPoints[hole[k]][0])) / 2;
             midy = (static_cast<float>(originalPoints[hole[j]][1]) + static_cast<float>(originalPoints[hole[k]][1])) / 2;
@@ -385,10 +409,7 @@ class ploc_t {
             }
         }
 
-        void cond2(std::vector<int> hole, bool &itest, int j, int k, int holeSize) {
-            // find points inti that is not j
-            // find neighbors of inti, intj that is not j
-            // check if line j-k intersects inti-intj
+        void intersectTest(std::vector<int> hole, bool &itest, int j, int k, int holeSize) {
             for(int inti = 0; inti < holeSize; inti++) {
                 if(inti != j) {
                     for(int intj = 0; intj < holeSize; intj++) {
@@ -444,10 +465,11 @@ class ploc_t {
             return false;
         }
 
-        // line intersection test
-        // if touching a vertex, not intersecting
-        // but if same slope and y-intercept, it is same line and is intersecting
-        // test for same line intersecting if sl == false
+        /* line intersection test
+         * if touching a vertex, not intersecting
+         * but if same slope and y-intercept, it is same line and is intersecting
+         * test for same line intersecting if sl == false
+         */
         bool lit(float p0_x, float p0_y, float p1_x, float p1_y, float p2_x, float p2_y, float p3_x, float    p3_y, bool sl = false)
         {
             float s1_x, s1_y, s2_x, s2_y;
