@@ -1,10 +1,8 @@
 Advanced Data Structures - 
 Homework Project 1
 
-To run this program, type 'make'.
-There should be an executable file called "TreeTest".
-Type './TreeTest' to execute the program.
+Alpha Weight Balanced Binary Tree
 
-Type 'make clean' to delete the .o and executable files.
+This tree is a leaf-tree, with all the objects as the leaves and keys as the intermediate nodes.
 
 
